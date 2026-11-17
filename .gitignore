@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+
+# LaTeX build artifacts
+report/*.aux
+report/*.bbl
+report/*.blg
+report/*.log
+report/*.out
+report/*.toc
+report/*.synctex.gz
+report/*.fls
+report/*.fdb_latexmk
