@@ -103,3 +103,27 @@ def test_bnb_warm_start_with_twice_around_the_tree_and_memory_tracking() -> None
     assert res_with_mem.peak_memory_bytes > 0
     assert abs(res_no_mem.best_cost - res_with_mem.best_cost) < 1e-9
     assert res_with_mem.best_cost <= approx.cost + 1e-9
+
+
+def test_bnb_mst_lower_bound_matches_brute_force_and_prunes_more() -> None:
+    """Valida que lower_bound_mode='mst' acha o ótimo exato e expande <= nós que 'two_min'."""
+    for n, seed in [(5, 42), (6, 7), (7, 99), (8, 123)]:
+        dist = _random_euc2d_matrix(n, seed)
+        exact_opt = _brute_force_tsp(dist)
+
+        res_two_min = solve_branch_and_bound(dist, lower_bound_mode="two_min")
+        res_mst = solve_branch_and_bound(dist, lower_bound_mode="mst")
+
+        assert abs(res_mst.best_cost - exact_opt) < 1e-7
+        assert abs(compute_tour_cost(res_mst.best_tour, dist) - exact_opt) < 1e-7
+        assert res_mst.nodes_expanded <= res_two_min.nodes_expanded
+
+
+def test_bnb_invalid_lower_bound_mode_raises() -> None:
+    """Modo de lower bound desconhecido deve falhar explicitamente."""
+    dist = _random_euc2d_matrix(4, seed=1)
+    try:
+        solve_branch_and_bound(dist, lower_bound_mode="invalido")
+        assert False, "Esperava ValueError para lower_bound_mode inválido"
+    except ValueError:
+        pass

@@ -38,6 +38,43 @@ def _precompute_vertex_bounds(
     return min1, two_min_sum, ordered_neighbors
 
 
+def _mst_cost_subset(dist_list: List[List[float]], nodes: List[int]) -> float:
+    """Calcula o custo da MST sobre um subconjunto de vértices via Prim denso O(k^2) sem cópia de matriz."""
+    k = len(nodes)
+    if k <= 1:
+        return 0.0
+    if k == 2:
+        return dist_list[nodes[0]][nodes[1]]
+
+    in_mst = [False] * k
+    in_mst[0] = True
+    row0 = dist_list[nodes[0]]
+    min_edge = [row0[nodes[i]] for i in range(k)]
+    total = 0.0
+
+    for _ in range(k - 1):
+        best_idx = -1
+        best_w = math.inf
+        for i in range(1, k):
+            if not in_mst[i] and min_edge[i] < best_w:
+                best_w = min_edge[i]
+                best_idx = i
+
+        if best_idx == -1:
+            break
+
+        in_mst[best_idx] = True
+        total += best_w
+        row_u = dist_list[nodes[best_idx]]
+        for i in range(1, k):
+            if not in_mst[i]:
+                w = row_u[nodes[i]]
+                if w < min_edge[i]:
+                    min_edge[i] = w
+
+    return total
+
+
 def solve_branch_and_bound(
     dist_matrix: np.ndarray,
     initial_tour: Optional[List[int]] = None,
@@ -45,13 +82,16 @@ def solve_branch_and_bound(
     strategy_name: str = "cold_start",
     timeout_sec: float = 1800.0,
     track_memory: bool = False,
+    lower_bound_mode: str = "two_min",
 ) -> BnBResult:
-    """Resolve o TSP via Branch-and-Bound (DFS + bitmask + lower bound O(1)).
+    """Resolve o TSP via Branch-and-Bound (DFS + bitmask).
 
-    O lower bound admissível é dado por:
-        LB = g + 0.5 * (min1[0] + min1[curr] + sum_{u não visitado} (min1[u] + min2[u]))
-    mantido incrementalmente em O(1) por nó, sem cópia de matrizes.
+    Modos de lower bound admissível (`lower_bound_mode`):
+        - ``"two_min"``: O(1) incremental via soma das duas menores arestas.
+        - ``"mst"``: O(k^2) via MST nos vértices não visitados + 2 arestas de conexão.
     """
+    if lower_bound_mode not in ("two_min", "mst"):
+        raise ValueError(f"lower_bound_mode inválido: {lower_bound_mode!r}. Use 'two_min' ou 'mst'.")
     n = dist_matrix.shape[0]
     timings: Dict[str, float] = {}
 
@@ -139,24 +179,58 @@ def solve_branch_and_bound(
                     return
 
             row_curr = dist_list[curr]
-            for nxt in ordered_neighbors[curr]:
-                if visited_mask & (1 << nxt):
-                    continue
+            if lower_bound_mode == "two_min":
+                for nxt in ordered_neighbors[curr]:
+                    if visited_mask & (1 << nxt):
+                        continue
 
-                new_g = g_cost + row_curr[nxt]
-                new_rem = rem_two_min - two_min_sum[nxt]
-                lb = new_g + 0.5 * (min1[0] + min1[nxt] + new_rem)
+                    new_g = g_cost + row_curr[nxt]
+                    new_rem = rem_two_min - two_min_sum[nxt]
+                    lb = new_g + 0.5 * (min1[0] + min1[nxt] + new_rem)
 
-                if lb >= best_cost - _EPS:
-                    nodes_pruned += 1
-                    continue
+                    if lb >= best_cost - _EPS:
+                        nodes_pruned += 1
+                        continue
 
-                path.append(nxt)
-                dfs(nxt, depth + 1, visited_mask | (1 << nxt), new_g, new_rem)
-                path.pop()
+                    path.append(nxt)
+                    dfs(nxt, depth + 1, visited_mask | (1 << nxt), new_g, new_rem)
+                    path.pop()
 
-                if timed_out:
-                    return
+                    if timed_out:
+                        return
+            else:
+                row0 = dist_list[0]
+                for nxt in ordered_neighbors[curr]:
+                    nxt_bit = 1 << nxt
+                    if visited_mask & nxt_bit:
+                        continue
+
+                    new_g = g_cost + row_curr[nxt]
+                    if new_g >= best_cost - _EPS:
+                        nodes_pruned += 1
+                        continue
+
+                    next_mask = visited_mask | nxt_bit
+                    unvisited = [v for v in range(1, n) if not (next_mask & (1 << v))]
+
+                    if not unvisited:
+                        lb = new_g + dist_list[nxt][0]
+                    else:
+                        row_nxt = dist_list[nxt]
+                        min_from_nxt = min(row_nxt[u] for u in unvisited)
+                        min_to_zero = min(row0[u] for u in unvisited)
+                        lb = new_g + min_from_nxt + _mst_cost_subset(dist_list, unvisited) + min_to_zero
+
+                    if lb >= best_cost - _EPS:
+                        nodes_pruned += 1
+                        continue
+
+                    path.append(nxt)
+                    dfs(nxt, depth + 1, next_mask, new_g, 0.0)
+                    path.pop()
+
+                    if timed_out:
+                        return
 
         with measure_subroutine(timings, "search_loop"):
             dfs(curr=0, depth=0, visited_mask=1, g_cost=0.0, rem_two_min=initial_rem_sum)
