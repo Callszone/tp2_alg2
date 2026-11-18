@@ -4,8 +4,8 @@ from pathlib import Path
 import numpy as np
 
 from src.branch_and_bound import solve_branch_and_bound
-from src.heuristics import cold_start, nearest_neighbor
-from src.tsplib_parser import load_tsplib_euc2d
+from src.heuristics import cold_start, convex_hull_insertion, nearest_neighbor
+from src.tsplib_parser import compute_euc2d_matrix, load_tsplib_euc2d
 from tests.test_contracts import compute_tour_cost
 
 
@@ -70,3 +70,50 @@ def test_heuristics_warm_start_bnb_on_eil51_n12() -> None:
 
     assert res_cs.best_cost == res_nn.best_cost
     assert res_nn.nodes_expanded <= res_cs.nodes_expanded
+
+
+def test_convex_hull_insertion_square_with_interior_point() -> None:
+    """Quadrado com ponto interno deve produzir ciclo válido e começar em 0."""
+    coords = np.array(
+        [
+            [0.0, 0.0],
+            [10.0, 0.0],
+            [10.0, 10.0],
+            [0.0, 10.0],
+            [5.0, 1.0],
+        ]
+    )
+    dist = compute_euc2d_matrix(coords)
+    res = convex_hull_insertion(coords, dist, track_memory=True)
+
+    assert res.tour[0] == 0
+    assert sorted(res.tour) == [0, 1, 2, 3, 4]
+    assert abs(compute_tour_cost(res.tour, dist) - res.cost) < 1e-9
+    assert res.peak_memory_bytes > 0
+    assert "convex_hull" in res.subroutine_times
+    assert "greedy_insertion" in res.subroutine_times
+
+
+def test_convex_hull_insertion_handles_collinear_points() -> None:
+    """Pontos colineares não devem falhar e devem gerar ciclo válido."""
+    coords = np.array([[0.0, 0.0], [2.0, 0.0], [5.0, 0.0], [9.0, 0.0]])
+    dist = compute_euc2d_matrix(coords)
+    res = convex_hull_insertion(coords, dist)
+
+    assert sorted(res.tour) == [0, 1, 2, 3]
+    assert res.cost == 18.0
+
+
+def test_convex_hull_warm_start_on_eil51_n12() -> None:
+    """Valida convex_hull_insertion como warm-start no B&B para eil51_n12."""
+    inst = load_tsplib_euc2d(Path("data/tsplib/eil51_n12.tsp"))
+    ch = convex_hull_insertion(inst.coords, inst.dist_matrix)
+    res = solve_branch_and_bound(
+        inst.dist_matrix,
+        initial_tour=ch.tour,
+        initial_bound=ch.cost,
+        strategy_name="convex_hull",
+        lower_bound_mode="mst",
+    )
+    assert not res.timed_out
+    assert res.best_cost <= ch.cost + 1e-9
