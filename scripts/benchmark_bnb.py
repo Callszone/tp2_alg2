@@ -8,14 +8,14 @@ import numpy as np
 
 from src.approximations import twice_around_the_tree
 from src.branch_and_bound import solve_branch_and_bound
+from src.tsplib_parser import compute_euc2d_matrix
 
 
 def make_euc2d_instance(n: int, seed: int = 42) -> np.ndarray:
-    """Gera matriz de distâncias EUC_2D (arredondada como na TSPLIB) em [0, 1000]^2."""
+    """Gera matriz de distâncias EUC_2D (arredondamento nint TSPLIB) em [0, 1000]^2."""
     rng = np.random.default_rng(seed)
     coords = rng.uniform(0.0, 1000.0, size=(n, 2))
-    diff = coords[:, np.newaxis, :] - coords[np.newaxis, :, :]
-    return np.rint(np.hypot(diff[:, :, 0], diff[:, :, 1]))
+    return compute_euc2d_matrix(coords)
 
 
 def run_benchmark(

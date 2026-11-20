@@ -4,17 +4,19 @@ import math
 from typing import Dict
 import numpy as np
 
-from src.heuristics import _monotone_chain_hull
+from src.heuristics import compute_convex_hull_indices
 from src.mst import compute_mst_prim
+
+_ENTROPY_GRID_SIZE = 4  # Grade fixa 4x4 (16 células) para evitar saltos de discretização em sqrt(N)
 
 
 def extract_instance_features(coords: np.ndarray, dist_matrix: np.ndarray) -> Dict[str, float]:
     """Extrai métricas geométricas e topológicas de uma instância TSP 2D.
 
     Features retornadas:
-        - ``aspect_ratio``: razão max(dx, dy) / min(dx, dy) do bounding box.
+        - ``aspect_ratio``: razão max(dx, dy) / min(dx, dy) do bounding box (sempre finita >= 1.0).
         - ``convex_hull_ratio``: fração de pontos pertencentes ao fecho convexo.
-        - ``spatial_entropy``: entropia de Shannon normalizada em grade sqrt(N) x sqrt(N).
+        - ``spatial_entropy``: entropia de Shannon normalizada em grade fixa 4x4.
         - ``mst_max_degree``: grau máximo de um vértice na MST (presença de hubs).
         - ``mst_leaf_ratio``: fração de folhas (grau 1) na MST.
         - ``mst_total_cost``: custo total da MST.
@@ -30,21 +32,24 @@ def extract_instance_features(coords: np.ndarray, dist_matrix: np.ndarray) -> Di
     if n == 0:
         raise ValueError("Instância vazia não possui features.")
 
-    # 1. Razão de aspecto do bounding box
+    # 1. Razão de aspecto do bounding box (sempre finita para evitar perda em regressões)
     min_xy = pts.min(axis=0)
     max_xy = pts.max(axis=0)
     span_x = float(max_xy[0] - min_xy[0])
     span_y = float(max_xy[1] - min_xy[1])
     hi_span = max(span_x, span_y)
     lo_span = min(span_x, span_y)
-    aspect_ratio = hi_span / lo_span if lo_span > 1e-12 else (1.0 if hi_span <= 1e-12 else math.inf)
+    if lo_span > 1e-9:
+        aspect_ratio = hi_span / lo_span
+    else:
+        aspect_ratio = max(1.0, hi_span)
 
     # 2. Proporção no fecho convexo
-    hull = _monotone_chain_hull(pts)
+    hull = compute_convex_hull_indices(pts)
     convex_hull_ratio = float(len(hull)) / float(n)
 
-    # 3. Entropia da distribuição espacial em grade g x g
-    grid_size = max(2, int(math.sqrt(n)))
+    # 3. Entropia da distribuição espacial em grade fixa 4x4
+    grid_size = _ENTROPY_GRID_SIZE
     if span_x <= 1e-12:
         gx = np.zeros(n, dtype=int)
     else:

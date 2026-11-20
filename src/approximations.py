@@ -73,17 +73,18 @@ def twice_around_the_tree(
     """
     matrix = np.asarray(dist_matrix)
     timings: Dict[str, float] = {}
+    memory_peaks: Dict[str, int] = {}
 
     with track_peak_memory(enabled=track_memory) as mem:
         total_start = time.perf_counter()
 
-        with measure_subroutine(timings, "mst"):
+        with measure_subroutine(timings, "mst", memory_peaks):
             mst = compute_mst_prim(matrix, root=root)
 
-        with measure_subroutine(timings, "preorder_dfs"):
+        with measure_subroutine(timings, "preorder_dfs", memory_peaks):
             tour = _preorder_dfs(mst.adjacency, root=root)
 
-        with measure_subroutine(timings, "tour_cost"):
+        with measure_subroutine(timings, "tour_cost", memory_peaks):
             cost = _compute_tour_cost(tour, matrix)
 
         elapsed_time = time.perf_counter() - total_start
@@ -93,6 +94,7 @@ def twice_around_the_tree(
         cost=cost,
         elapsed_time=elapsed_time,
         subroutine_times=timings,
+        subroutine_memory_bytes=memory_peaks,
         peak_memory_bytes=mem.peak_bytes,
     )
 
@@ -143,24 +145,25 @@ def christofides(
         )
 
     timings: Dict[str, float] = {}
+    memory_peaks: Dict[str, int] = {}
 
     with track_peak_memory(enabled=track_memory) as mem:
         total_start = time.perf_counter()
 
-        with measure_subroutine(timings, "mst"):
+        with measure_subroutine(timings, "mst", memory_peaks):
             mst = compute_mst_prim(matrix, root=0)
 
-        with measure_subroutine(timings, "odd_vertices"):
+        with measure_subroutine(timings, "odd_vertices", memory_peaks):
             odd_vertices = [v for v, deg in enumerate(mst.degrees()) if deg % 2 != 0]
 
-        with measure_subroutine(timings, "min_weight_matching"):
+        with measure_subroutine(timings, "min_weight_matching", memory_peaks):
             subgraph = nx.Graph()
             for i, u in enumerate(odd_vertices):
                 for w in odd_vertices[i + 1 :]:
                     subgraph.add_edge(u, w, weight=float(matrix[u, w]))
             matching = nx.min_weight_matching(subgraph, weight="weight")
 
-        with measure_subroutine(timings, "eulerian_circuit"):
+        with measure_subroutine(timings, "eulerian_circuit", memory_peaks):
             multi_graph = nx.MultiGraph()
             for u, v in mst.edges():
                 multi_graph.add_edge(u, v)
@@ -168,7 +171,7 @@ def christofides(
                 multi_graph.add_edge(u, v)
             eulerian_edges = list(nx.eulerian_circuit(multi_graph, source=0))
 
-        with measure_subroutine(timings, "shortcutting"):
+        with measure_subroutine(timings, "shortcutting", memory_peaks):
             visited = [False] * n
             tour: List[int] = []
             for u, _ in eulerian_edges:
@@ -185,7 +188,7 @@ def christofides(
                 idx0 = tour.index(0)
                 tour = tour[idx0:] + tour[:idx0]
 
-        with measure_subroutine(timings, "tour_cost"):
+        with measure_subroutine(timings, "tour_cost", memory_peaks):
             cost = _compute_tour_cost(tour, matrix)
 
         elapsed_time = time.perf_counter() - total_start
@@ -195,5 +198,6 @@ def christofides(
         cost=cost,
         elapsed_time=elapsed_time,
         subroutine_times=timings,
+        subroutine_memory_bytes=memory_peaks,
         peak_memory_bytes=mem.peak_bytes,
     )

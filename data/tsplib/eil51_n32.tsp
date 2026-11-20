@@ -1,5 +1,5 @@
 NAME : eil51_n32
-COMMENT : First 32 vertices from TSPLIB eil51 (EUC_2D)
+COMMENT : Topologically diverse 32-vertex subset (stride) from TSPLIB eil51 (EUC_2D)
 TYPE : TSP
 DIMENSION : 32
 EDGE_WEIGHT_TYPE : EUC_2D

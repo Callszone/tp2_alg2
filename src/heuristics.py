@@ -32,14 +32,15 @@ def cold_start(dist_matrix: np.ndarray, track_memory: bool = False) -> TourResul
     matrix = _validate_dist_matrix(dist_matrix)
     n = matrix.shape[0]
     timings: Dict[str, float] = {}
+    memory_peaks: Dict[str, int] = {}
 
     with track_peak_memory(enabled=track_memory) as mem:
         start_time = time.perf_counter()
 
-        with measure_subroutine(timings, "tour_construction"):
+        with measure_subroutine(timings, "tour_construction", memory_peaks):
             tour = list(range(n))
 
-        with measure_subroutine(timings, "tour_cost"):
+        with measure_subroutine(timings, "tour_cost", memory_peaks):
             cost = _compute_tour_cost(tour, matrix)
 
         elapsed = time.perf_counter() - start_time
@@ -49,6 +50,7 @@ def cold_start(dist_matrix: np.ndarray, track_memory: bool = False) -> TourResul
         cost=cost,
         elapsed_time=elapsed,
         subroutine_times=timings,
+        subroutine_memory_bytes=memory_peaks,
         peak_memory_bytes=mem.peak_bytes,
     )
 
@@ -67,10 +69,11 @@ def nearest_neighbor(
         raise ValueError(f"Vértice inicial inválido: {start} (esperado 0 <= start < {n}).")
 
     timings: Dict[str, float] = {}
+    memory_peaks: Dict[str, int] = {}
     with track_peak_memory(enabled=track_memory) as mem:
         start_time = time.perf_counter()
 
-        with measure_subroutine(timings, "greedy_selection"):
+        with measure_subroutine(timings, "greedy_selection", memory_peaks):
             visited = [False] * n
             curr = int(start)
             visited[curr] = True
@@ -88,7 +91,7 @@ def nearest_neighbor(
                 tour.append(best_next)
                 curr = best_next
 
-        with measure_subroutine(timings, "tour_cost"):
+        with measure_subroutine(timings, "tour_cost", memory_peaks):
             cost = _compute_tour_cost(tour, matrix)
 
         elapsed = time.perf_counter() - start_time
@@ -98,11 +101,12 @@ def nearest_neighbor(
         cost=cost,
         elapsed_time=elapsed,
         subroutine_times=timings,
+        subroutine_memory_bytes=memory_peaks,
         peak_memory_bytes=mem.peak_bytes,
     )
 
 
-def _monotone_chain_hull(coords: np.ndarray) -> List[int]:
+def compute_convex_hull_indices(coords: np.ndarray) -> List[int]:
     """Calcula os índices do fecho convexo 2D via Andrew's Monotone Chain em O(N log N)."""
     n = coords.shape[0]
     if n <= 2:
@@ -113,7 +117,11 @@ def _monotone_chain_hull(coords: np.ndarray) -> List[int]:
     ]
     pts.sort(key=lambda p: (p[0], p[1], p[2]))
 
-    def cross(o: Tuple[float, float, int], a: Tuple[float, float, int], b: Tuple[float, float, int]) -> float:
+    def cross(
+        o: Tuple[float, float, int],
+        a: Tuple[float, float, int],
+        b: Tuple[float, float, int],
+    ) -> float:
         return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
 
     lower: List[Tuple[float, float, int]] = []
@@ -132,12 +140,22 @@ def _monotone_chain_hull(coords: np.ndarray) -> List[int]:
     return hull if len(hull) >= 2 else [pts[0][2], pts[-1][2]]
 
 
+# Alias para compatibilidade interna
+_monotone_chain_hull = compute_convex_hull_indices
+
+
 def convex_hull_insertion(
     coords: np.ndarray,
     dist_matrix: np.ndarray,
     track_memory: bool = False,
 ) -> TourResult:
-    """Heurística de inserção gulosa (Cheapest Insertion) a partir do fecho convexo 2D."""
+    """Heurística de inserção gulosa (Cheapest Insertion) em O(N^2) a partir do fecho convexo 2D.
+
+    Refatoração O(N^3) -> O(N^2): mantém para cada vértice restante k a melhor aresta
+    de inserção (best_u[k], best_w[k], best_delta[k]). Quando k* é inserido na aresta
+    (u*, w*), apenas vértices cuja melhor aresta era (u*, w*) reavaliam o ciclo; os
+    demais testam apenas as 2 novas arestas (u*, k*) e (k*, w*) em O(1).
+    """
     matrix = _validate_dist_matrix(dist_matrix)
     coords_arr = np.asarray(coords, dtype=np.float64)
     n = matrix.shape[0]
@@ -150,43 +168,95 @@ def convex_hull_insertion(
         return cold_start(matrix, track_memory=track_memory)
 
     timings: Dict[str, float] = {}
+    memory_peaks: Dict[str, int] = {}
     with track_peak_memory(enabled=track_memory) as mem:
         start_time = time.perf_counter()
 
-        with measure_subroutine(timings, "convex_hull"):
-            tour = _monotone_chain_hull(coords_arr)
+        with measure_subroutine(timings, "convex_hull", memory_peaks):
+            hull = compute_convex_hull_indices(coords_arr)
 
-        with measure_subroutine(timings, "greedy_insertion"):
-            in_tour = [False] * n
-            for v in tour:
-                in_tour[v] = True
-            remaining = [v for v in range(n) if not in_tour[v]]
+        with measure_subroutine(timings, "greedy_insertion", memory_peaks):
+            dist_list = matrix.tolist()
+            # Representa o ciclo como lista encadeada via array next_node[u] = w
+            next_node = [-1] * n
+            m = len(hull)
+            for idx in range(m):
+                next_node[hull[idx]] = hull[(idx + 1) % m]
+            tour_vertices = list(hull)
+
+            remaining = [v for v in range(n) if next_node[v] == -1]
+            best_delta = [math.inf] * n
+            best_u = [-1] * n
+            best_w = [-1] * n
+
+            def recompute_best_for(k: int) -> None:
+                row_k = dist_list[k]
+                b_delta = math.inf
+                b_u = -1
+                b_w = -1
+                for u in tour_vertices:
+                    w = next_node[u]
+                    delta = dist_list[u][k] + row_k[w] - dist_list[u][w]
+                    if delta < b_delta:
+                        b_delta = delta
+                        b_u = u
+                        b_w = w
+                best_delta[k] = b_delta
+                best_u[k] = b_u
+                best_w[k] = b_w
+
+            for k in remaining:
+                recompute_best_for(k)
 
             while remaining:
-                best_delta = math.inf
-                best_v_idx = 0
-                best_pos = 1
-                m = len(tour)
+                chosen_idx = 0
+                chosen_k = remaining[0]
+                min_d = best_delta[chosen_k]
+                for r_idx in range(1, len(remaining)):
+                    cand = remaining[r_idx]
+                    if best_delta[cand] < min_d:
+                        min_d = best_delta[cand]
+                        chosen_k = cand
+                        chosen_idx = r_idx
 
-                for r_idx, k in enumerate(remaining):
-                    row_k = matrix[k]
-                    for pos in range(m):
-                        u = tour[pos]
-                        w = tour[(pos + 1) % m]
-                        delta = float(matrix[u, k] + row_k[w] - matrix[u, w])
-                        if delta < best_delta:
-                            best_delta = delta
-                            best_v_idx = r_idx
-                            best_pos = pos + 1
+                u_star = best_u[chosen_k]
+                w_star = best_w[chosen_k]
+                remaining.pop(chosen_idx)
 
-                chosen = remaining.pop(best_v_idx)
-                tour.insert(best_pos, chosen)
+                # Insere chosen_k entre u_star e w_star
+                next_node[u_star] = chosen_k
+                next_node[chosen_k] = w_star
+                tour_vertices.append(chosen_k)
 
-            # Rotaciona para começar canonicamente no vértice 0
-            zero_idx = tour.index(0)
-            tour = tour[zero_idx:] + tour[:zero_idx]
+                d_u_k = dist_list[u_star][chosen_k]
+                d_k_w = dist_list[chosen_k][w_star]
+                row_u = dist_list[u_star]
+                row_chosen = dist_list[chosen_k]
 
-        with measure_subroutine(timings, "tour_cost"):
+                for k in remaining:
+                    if best_u[k] == u_star and best_w[k] == w_star:
+                        recompute_best_for(k)
+                    else:
+                        row_cand = dist_list[k]
+                        d1 = row_u[k] + row_cand[chosen_k] - d_u_k
+                        if d1 < best_delta[k]:
+                            best_delta[k] = d1
+                            best_u[k] = u_star
+                            best_w[k] = chosen_k
+                        d2 = row_chosen[k] + row_cand[w_star] - d_k_w
+                        if d2 < best_delta[k]:
+                            best_delta[k] = d2
+                            best_u[k] = chosen_k
+                            best_w[k] = w_star
+
+            # Reconstrói o ciclo a partir do vértice 0
+            tour: List[int] = []
+            curr = 0
+            for _ in range(n):
+                tour.append(curr)
+                curr = next_node[curr]
+
+        with measure_subroutine(timings, "tour_cost", memory_peaks):
             cost = _compute_tour_cost(tour, matrix)
 
         elapsed = time.perf_counter() - start_time
@@ -196,5 +266,6 @@ def convex_hull_insertion(
         cost=cost,
         elapsed_time=elapsed,
         subroutine_times=timings,
+        subroutine_memory_bytes=memory_peaks,
         peak_memory_bytes=mem.peak_bytes,
     )

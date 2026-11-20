@@ -5,8 +5,20 @@ from pathlib import Path
 from typing import Dict, List, Optional
 import numpy as np
 
-# Custos ótimos oficiais publicados na TSPLIB95 (EUC_2D com arredondamento nint)
+# Custos ótimos oficiais publicados na TSPLIB95 e ótimos exatos verificados das subinstâncias (EUC_2D)
 KNOWN_OPTIMA: Dict[str, float] = {
+    "eil51_n12": 123.0,
+    "berlin52_n14": 3716.0,
+    "st70_n16": 358.0,
+    "eil51_n18": 138.0,
+    "berlin52_n20": 3335.0,
+    "st70_n22": 318.0,
+    "eil51_n24": 244.0,
+    "berlin52_n26": 2660.0,
+    "st70_n28": 305.0,
+    "eil51_n32": 308.0,
+    "berlin52_n36": 5760.0,
+    "st70_n40": 409.0,
     "eil51": 426.0,
     "berlin52": 7542.0,
     "st70": 675.0,
