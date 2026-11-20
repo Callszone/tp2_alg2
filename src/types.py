@@ -12,6 +12,7 @@ class TourResult:
     cost: float
     elapsed_time: float
     subroutine_times: Dict[str, float] = field(default_factory=dict)
+    subroutine_memory_bytes: Dict[str, int] = field(default_factory=dict)
     peak_memory_bytes: int = 0
 
 
@@ -29,4 +30,5 @@ class BnBResult:
     initial_bound: float
     strategy: str
     subroutine_times: Dict[str, float] = field(default_factory=dict)
+    subroutine_memory_bytes: Dict[str, int] = field(default_factory=dict)
     peak_memory_bytes: int = 0

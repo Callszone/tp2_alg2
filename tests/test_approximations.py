@@ -1,4 +1,4 @@
-"""Testes unitários para Twice-around-the-tree e instrumentação de profiling."""
+"""Testes unitários para Twice-around-the-tree, Christofides e instrumentação de profiling."""
 
 from itertools import permutations
 import tracemalloc
@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from scipy.spatial.distance import cdist
 
-from src.approximations import twice_around_the_tree
+from src.approximations import christofides, twice_around_the_tree
 from src.mst import compute_mst_prim
 from src.profiling import track_peak_memory
 from src.types import TourResult
@@ -202,3 +202,160 @@ def test_tatt_invalid_inputs() -> None:
     )
     with pytest.raises(ValueError):
         twice_around_the_tree(disconnected)
+
+
+def _assert_valid_christofides_result(
+    result: TourResult,
+    dist_matrix: np.ndarray,
+    expect_memory: bool = False,
+) -> None:
+    """Valida todos os contratos de TourResult para christofides."""
+    n = dist_matrix.shape[0]
+    assert isinstance(result, TourResult)
+    assert isinstance(result.tour, list)
+    assert len(result.tour) == n
+    assert all(type(v) is int for v in result.tour)
+    assert result.tour[0] == 0
+    assert sorted(result.tour) == list(range(n))
+
+    assert isinstance(result.cost, float)
+    if n == 1:
+        assert result.cost == 0.0
+    else:
+        assert result.cost == pytest.approx(compute_tour_cost(result.tour, dist_matrix))
+
+    expected_subroutines = {
+        "mst",
+        "odd_vertices",
+        "min_weight_matching",
+        "eulerian_circuit",
+        "shortcutting",
+        "tour_cost",
+    }
+    if n > 1:
+        assert set(result.subroutine_times.keys()) == expected_subroutines
+        for t in result.subroutine_times.values():
+            assert isinstance(t, float) and t >= 0.0
+        assert result.elapsed_time >= sum(result.subroutine_times.values())
+
+    if expect_memory:
+        assert result.peak_memory_bytes > 0
+    else:
+        assert result.peak_memory_bytes == 0
+
+
+def test_christofides_unit_square_deterministic() -> None:
+    """No quadrado unitário, Christofides produz o ciclo ótimo de custo 4.0."""
+    coords = np.array([[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]])
+    dist = cdist(coords, coords)
+
+    result = christofides(dist)
+    _assert_valid_christofides_result(result, dist, expect_memory=False)
+    assert result.cost == pytest.approx(4.0)
+
+
+def test_christofides_collinear_points() -> None:
+    """Em pontos colineares 0, 1, 3, 7, o tour fechado ótimo tem custo 14.0."""
+    coords = np.array([[0.0, 0.0], [1.0, 0.0], [3.0, 0.0], [7.0, 0.0]])
+    dist = cdist(coords, coords)
+
+    result = christofides(dist)
+    _assert_valid_christofides_result(result, dist)
+    assert result.cost == pytest.approx(14.0)
+
+
+@pytest.mark.parametrize("n", [4, 6, 8])
+def test_christofides_1_5_approximation_guarantee_vs_exact(n: int) -> None:
+    """Verifica OPT <= Christofides <= 1.5 * OPT em instâncias EUC_2D aleatórias."""
+    rng = np.random.default_rng(seed=200 + n)
+    for _ in range(5):
+        coords = rng.uniform(0.0, 100.0, size=(n, 2))
+        dist = cdist(coords, coords)
+
+        opt = _brute_force_tsp_opt(dist)
+        result = christofides(dist)
+
+        _assert_valid_christofides_result(result, dist)
+        assert opt <= result.cost + 1e-9
+        assert result.cost <= 1.5 * opt + 1e-9
+
+
+@pytest.mark.parametrize("n", [20, 35])
+def test_christofides_immutability_and_scaling(n: int) -> None:
+    """Valida que Christofides não modifica a matriz de entrada e respeita cota da MST."""
+    rng = np.random.default_rng(seed=3000 + n)
+    coords = rng.uniform(0.0, 1000.0, size=(n, 2))
+    dist = cdist(coords, coords)
+    dist_copy = dist.copy()
+
+    mst = compute_mst_prim(dist, root=0)
+    result = christofides(dist)
+
+    _assert_valid_christofides_result(result, dist, expect_memory=False)
+    assert mst.total_weight <= result.cost
+    np.testing.assert_array_equal(dist, dist_copy)
+
+
+def test_christofides_memory_tracking() -> None:
+    """Valida medição isolada de memória para Christofides."""
+    rng = np.random.default_rng(seed=42)
+    coords = rng.uniform(0.0, 100.0, size=(25, 2))
+    dist = cdist(coords, coords)
+
+    assert not tracemalloc.is_tracing()
+
+    res_no_mem = christofides(dist, track_memory=False)
+    assert not tracemalloc.is_tracing()
+    _assert_valid_christofides_result(res_no_mem, dist, expect_memory=False)
+
+    res_mem = christofides(dist, track_memory=True)
+    assert not tracemalloc.is_tracing()
+    _assert_valid_christofides_result(res_mem, dist, expect_memory=True)
+
+
+def test_christofides_edge_cases() -> None:
+    """Valida N=1, N=2, N=3 e pontos coincidentes."""
+    # N = 1
+    res1 = christofides(np.array([[0.0]]))
+    _assert_valid_christofides_result(res1, np.array([[0.0]]))
+    assert res1.tour == [0]
+    assert res1.cost == 0.0
+
+    # N = 2
+    dist2 = np.array([[0.0, 7.0], [7.0, 0.0]])
+    res2 = christofides(dist2)
+    _assert_valid_christofides_result(res2, dist2)
+    assert res2.tour == [0, 1]
+    assert res2.cost == pytest.approx(14.0)
+
+    # N = 3
+    dist3 = np.array([[0.0, 3.0, 4.0], [3.0, 0.0, 5.0], [4.0, 5.0, 0.0]])
+    res3 = christofides(dist3)
+    _assert_valid_christofides_result(res3, dist3)
+    assert res3.cost == pytest.approx(12.0)
+
+    # Pontos coincidentes
+    coords = np.array([[0.0, 0.0], [0.0, 0.0], [3.0, 4.0], [3.0, 4.0]])
+    dist_zero = cdist(coords, coords)
+    res_zero = christofides(dist_zero)
+    _assert_valid_christofides_result(res_zero, dist_zero)
+    assert res_zero.cost == pytest.approx(10.0)
+
+
+def test_christofides_invalid_inputs() -> None:
+    """Valida propagação de exceções para entradas incorretas."""
+    with pytest.raises(ValueError):
+        christofides(np.empty((0, 0)))
+
+    with pytest.raises(ValueError):
+        christofides(np.zeros((2, 3)))
+
+    disconnected = np.array(
+        [
+            [0.0, 1.0, np.inf],
+            [1.0, 0.0, np.inf],
+            [np.inf, np.inf, 0.0],
+        ]
+    )
+    with pytest.raises(ValueError):
+        christofides(disconnected)
