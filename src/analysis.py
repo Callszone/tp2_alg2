@@ -314,23 +314,25 @@ def _build_warmstart_summary(
     primary_mode = "mst" if "mst" in merged["lb_mode"].values else str(merged["lb_mode"].iloc[0])
     mode_df = merged[merged["lb_mode"] == primary_mode]
 
-    # Gráfico 3: Nós expandidos e nós podados por estratégia (incluindo instâncias completas)
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+    # Gráfico 3: Nós expandidos e nós podados por estratégia (layout vertical amplo para nitidez das 5 barras)
+    fig, axes = plt.subplots(2, 1, figsize=(11, 8), sharex=True)
     for ax, col, title in [
-        (axes[0], "nodes_expanded", f"Nós Expandidos (LB={primary_mode})"),
-        (axes[1], "nodes_pruned", f"Nós Podados (LB={primary_mode})"),
+        (axes[0], "nodes_expanded", f"Nós Expandidos por Instância e Estratégia (LB={primary_mode})"),
+        (axes[1], "nodes_pruned", f"Nós Podados por Instância e Estratégia (LB={primary_mode})"),
     ]:
         piv = mode_df.pivot_table(index="n", columns="strategy", values=col, aggfunc="mean")
         if not piv.empty:
-            piv.plot(kind="bar", ax=ax)
-            ax.set_xlabel("Número de vértices (N)")
+            piv.plot(kind="bar", ax=ax, width=0.78, edgecolor="black", linewidth=0.3)
             ax.set_ylabel("Contagem de nós (escala log)")
             if (piv.to_numpy() > 0).any():
                 ax.set_yscale("log")
             ax.set_title(title)
             ax.grid(True, linestyle="--", alpha=0.4)
-    axes[0].get_legend().remove() if axes[0].get_legend() else None
-    axes[1].legend(title="Estratégia", bbox_to_anchor=(1.02, 1), loc="upper left")
+    axes[1].set_xlabel("Número de vértices (N)")
+    if axes[0].get_legend():
+        axes[0].legend(title="Estratégia", bbox_to_anchor=(1.01, 1), loc="upper left")
+    if axes[1].get_legend():
+        axes[1].get_legend().remove()
     fig.tight_layout()
     fig.savefig(figures_dir / "warmstart_nodes.png", dpi=150)
     plt.close(fig)
@@ -495,15 +497,31 @@ def _build_sensitivity_analysis(
     imp_df.to_csv(results_dir / "sensitivity_feature_importance.csv", index=False)
 
     if not imp_df.empty:
-        piv = imp_df.pivot(index="feature", columns="algorithm", values="tree_importance").fillna(0.0)
-        fig, ax = plt.subplots(figsize=(9, 5))
-        piv.plot(kind="barh", ax=ax)
-        ax.set_xlabel("Importância na Árvore de Decisão (max_depth=2)")
-        ax.set_ylabel("Feature Geométrica/Topológica")
-        ax.set_title("Análise de Sensibilidade: Impacto das Features no Gap (%)")
-        ax.legend(title="Algoritmo", bbox_to_anchor=(1.02, 1), loc="upper left")
+        fig, axes = plt.subplots(1, 2, figsize=(13, 5.5), sharey=True)
+        piv_tree = imp_df.pivot(
+            index="feature", columns="algorithm", values="tree_importance"
+        ).fillna(0.0)
+        piv_tree.plot(kind="barh", ax=axes[0], width=0.75)
+        axes[0].set_xlabel("Importância na Árvore (max_depth=2)")
+        axes[0].set_ylabel("Feature Geométrica/Topológica")
+        axes[0].set_title("Importância por Árvore de Decisão")
+        axes[0].grid(True, linestyle="--", alpha=0.4)
+        if axes[0].get_legend():
+            axes[0].get_legend().remove()
+
+        piv_sp = imp_df.pivot(index="feature", columns="algorithm", values="spearman_rho").fillna(
+            0.0
+        )
+        piv_sp.plot(kind="barh", ax=axes[1], width=0.75)
+        axes[1].axvline(0.0, color="black", linewidth=0.8, linestyle="--")
+        axes[1].set_xlabel("Correlação de Spearman (ρ) com o Gap (%)")
+        axes[1].set_title("Direção e Magnitude (Spearman ρ)")
+        axes[1].grid(True, linestyle="--", alpha=0.4)
+        axes[1].legend(title="Algoritmo", bbox_to_anchor=(1.02, 1), loc="upper left")
+
+        fig.suptitle("Análise de Sensibilidade: Impacto das Features no Gap de Aproximação", y=1.02)
         fig.tight_layout()
-        fig.savefig(figures_dir / "sensitivity_importance.png", dpi=150)
+        fig.savefig(figures_dir / "sensitivity_importance.png", dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     return imp_df
