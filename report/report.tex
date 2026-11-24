@@ -6,6 +6,7 @@
 \geometry{a4paper, top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm}
 
 \usepackage{times}
+\usepackage{microtype}
 \usepackage{graphicx}
 \usepackage{amsmath, amssymb}
 \usepackage{booktabs}
@@ -15,6 +16,10 @@
 \usepackage{caption}
 \usepackage{xurl}
 \usepackage{hyperref}
+
+\emergencystretch=1.5em
+\let\origunderscore\_
+\renewcommand{\_}{\origunderscore\hspace{0pt}}
 
 \graphicspath{{./figures/}}
 
