@@ -58,14 +58,14 @@
 % =========================
 \section{Introdução}
 
-Este trabalho tem como objetivo abordar os aspectos práticos na codificação, a nível de implementação e auditoria, sob a ótica da avaliação de métricas, de algoritmos para problemas computacionalmente difíceis (NP-Difíceis). Para tal, concentramos nossos esforços na aplicação ao Problema do Caixeiro Viajante (TSP) Geométrico (\texttt{EUC\_2D}), investigando três abordagens clássicas:
+Este trabalho tem como objetivo abordar os aspectos práticos na codificação, a nível de implementação e auditoria, sob a ótica da avaliação de métricas, de algoritmos para problemas computacionalmente difíceis (NP-Difíceis). Para tal, concentramos nossos esforços na aplicação ao Problema do Caixeiro Viajante (TSP) Geométrico, investigando três abordagens: 
 \begin{itemize}
   \item \textbf{Branch-and-Bound} de saída exata;
   \item \textbf{Twice-around-the-tree} de saída aproximada ($2$-aproximação);
   \item \textbf{Christofides} de saída aproximada ($1{,}5$-aproximação).
 \end{itemize}
 
-Não somente isso, auditamos criticamente o uso de estruturas de dados, gargalos teóricos \textit{versus} práticos, o impacto de cinco estratégias de \textit{warm-start} (\textit{Cold Start}, Vizinho Mais Próximo, Inserção por Fecho Convexo, \textit{Twice-around-the-tree} e \textit{Christofides}) na poda da árvore de busca e como a topologia das instâncias impacta o \textit{gap} de aproximação e o colapso da busca exata.
+Não somente isso, auditamos criticamente o uso de estruturas de dados, gargalos teóricos \textit{versus} práticos, o impacto de cinco estratégias de \textit{warm-start}, \texit{nearest neighbor}, Inserção por Fecho Convexo, \textit{Twice-around-the-tree} e \textit{Christofides}) na poda da árvore de busca e como a topologia das instâncias impacta o \textit{gap} de aproximação e o colapso da busca exata.
 
 % TODO (Integrante 3): Expandir contextualização sobre o compromisso otimalidade vs. escalabilidade e resumir a organização das seções 2 a 5.
 
@@ -75,37 +75,37 @@ Não somente isso, auditamos criticamente o uso de estruturas de dados, gargalos
 \section{Implementação, Profiling e Auditoria}
 
 \subsection{Arquitetura e Contratos de Dados}
-Toda a implementação foi desenvolvida em Python~3.12, estruturada de forma modular em torno de contratos definidos em \texttt{src/types.py} (\texttt{TourResult} para heurísticas e aproximações e \texttt{BnBResult} para o algoritmo exato). As instâncias \texttt{EUC\_2D} da TSPLIB são carregadas por \texttt{src/tsplib\_parser.py}, que pré-computa a matriz simétrica de distâncias segundo a especificação oficial da biblioteca ($\lfloor d + 0{,}5 \rfloor$).
+Toda a implementação foi desenvolvida em Python~3.12, estruturada em torno de contratos definidos em \texttt{src/types.py} (\texttt{TourResult} para heurísticas e aproximações e \texttt{BnBResult} para o algoritmo exato). As instâncias \texttt{EUC\_2D} da TSPLIB são carregadas por \texttt{src/tsplib\_parser.py}, que pré-computa a matriz simétrica de distâncias segundo a especificação oficial da biblioteca.
 
 Para evitar que a instrumentação de memória distorça a complexidade temporal empírica, o módulo \texttt{src/profiling.py} separa as medições por meio da flag \texttt{track\_memory} (desativada por padrão em tomadas de tempo). Quando ativada em uma medição isolada de memória, resetamos o contador de pico a cada sub-rotina, salvando o maior valor anterior para preservar o máximo global.
 
 \subsection{Branch-and-Bound: Busca, Limite Inferior e Otimizações}
-O algoritmo exato (\texttt{src/branch\_and\_bound.py}) explora o espaço de permutações fixando o vértice $0$ como origem e adotando \textbf{Busca em Profundidade (DFS)} com ordenação estática dos filhos pela menor aresta incidente (\textit{nearest-first}). A escolha do DFS em detrimento de \textit{Best-First Search} justifica-se pela restrição espacial: enquanto o \textit{Best-First} mantém uma fila de prioridade com potencial crescimento exponencial na memória RAM, o DFS opera em espaço $O(N)$ reutilizando um único vetor \texttt{path} (\texttt{append}/\texttt{pop} \textit{in-place}) e atingindo soluções completas rapidamente para apertar o limite superior (\textit{upper bound}).
+O algoritmo exato (\texttt{src/branch\_and\_bound.py}) explora o espaço de permutações fixando o vértice $0$ como origem e adotando \textbf{DFS} com ordenação estática dos filhos por \textit{nearest-first}. A escolha do DFS em detrimento de \textit{Best-First Search} justifica-se pela restrição espacial: enquanto o \textit{Best-First} mantém uma fila de prioridade com potencial crescimento exponencial na memória RAM, o DFS opera em espaço $O(N)$ reutilizando um único vetor \texttt{path} (\texttt{append}/\texttt{pop} \textit{in-place}) e atingindo soluções completas rapidamente para apertar o limite superior.
 
-Quanto à ordenação dos filhos, optou-se pelo \textit{nearest-first} pré-computado ($O(N^2 \log N)$ em \texttt{precompute\_bounds}, com custo zero durante a recursão) por dois motivos: (i) diferentemente de uma ordem lexicográfica fixa, que é geometricamente arbitrária e produz soluções iniciais caras, priorizar arestas curtas faz a primeira descida do DFS encontrar rapidamente uma rota próxima ao Vizinho Mais Próximo, apertando o \textit{upper bound} cedo e favorecendo a poda imediata dos irmãos mais longos avaliados na sequência; e (ii) diferentemente de ordenar dinamicamente pelo \textit{lower bound} de cada filho em todos os nós internos, evita-se gastar tempo $O(k^3)$ calculando MSTs para ramos que serão podados após a atualização do limite superior.
+Quanto à ordenação dos filhos, optou-se pelo \textit{nearest-first} pré-computado ($O(N^2 \log N)$ em \texttt{precompute\_bounds}) por dois motivos: (i) diferentemente de uma ordem lexicográfica fixa, que é geometricamente arbitrária e produz soluções iniciais caras, priorizar arestas curtas faz a primeira descida do DFS encontrar rapidamente uma rota próxima ao ótimo, apertando o \textit{upper bound} cedo e favorecendo a poda dos irmãos mais longos posteriores; e (ii) diferentemente de ordenar dinamicamente pelo \textit{lower bound} de cada filho em todos os nós internos, evita-se gastar tempo $O(k^3)$ calculando MSTs para ramos que serão podados após a atualização do limite superior.
 
-Para eliminar alocações redundantes e pressão no coletor de lixo (\textit{garbage collector}) dentro da recursão:
+Para eliminar alocações redundantes e pressão no coletor de lixo dentro da recursão:
 \begin{itemize}
-    \item A matriz de distâncias nunca é copiada para os nós da árvore; ela é convertida uma única vez em \texttt{precompute\_bounds} para lista de listas Python pura (\texttt{dist\_list}), evitando o \textit{overhead} de indexação escalar do NumPy no laço interno.
-    \item O conjunto de vértices visitados é codificado em um único inteiro por \textbf{bitmask} (\texttt{visited\_mask}), aproveitando a precisão arbitrária de inteiros em Python para suportar $N \le 75$.
-    \item Em matrizes simétricas, aplica-se \textbf{quebra de simetria de ciclo em $O(1)$}, exigindo que o primeiro vértice após a origem seja menor que o último ($v_1 < v_{N-1}$). Com máscaras pré-computadas (\texttt{greater\_masks}), qualquer ramo intermediário em que todos os vértices maiores que $v_1$ já tenham sido visitados é podado imediatamente.
+    \item A matriz de distâncias nunca é copiada; ela é convertida uma única vez em \texttt{precompute\_bounds}, evitando o \textit{overhead} de indexação do NumPy no loop interno.
+    \item O conjunto de vértices visitados é codificado em um único inteiro por \textbf{bitmask}, para suportar $N \le 75$.
+    \item Em matrizes simétricas, aplica-se quebra de simetria de ciclo em $O(1)$, exigindo que o primeiro vértice após a origem seja menor que o último. Com máscaras pré-computadas, qualquer ramo intermediário em que todos os vértices maiores que $v_1$ já tenham sido visitados é podado imediatamente.
 \end{itemize}
 
-Foram implementados e auditados dois modos admissíveis de limite inferior (\textit{lower bound}):
+Foram implementados e auditados dois modos admissíveis de limite inferior:
 \begin{enumerate}
     \item \textbf{\texttt{two\_min} ($O(1)$ incremental):} pré-computa as duas menores arestas incidentes a cada vértice ($m_1[v] \le m_2[v]$) e avalia
     \[
         LB_{\text{two\_min}} = g + \frac{1}{2}\left(m_1[0] + m_1[\text{nxt}] + \sum_{u \notin P} (m_1[u] + m_2[u])\right),
     \]
     atualizando o somatório restante em $O(1)$ por nó. Embora alcance vazão de $2{,}4 \times 10^5$ a $5{,}5 \times 10^5$ nós/s, o limite torna-se frouxo quando os vértices não visitados formam agrupamentos desconexos.
-    \item \textbf{\texttt{mst} (híbrido $O(1) + O(k^2)$):} aplica primeiro o filtro rápido $LB_{\text{two\_min}}$ e, apenas para os nós sobreviventes, calcula o custo da Árvore Geradora Mínima (MST) via Prim denso sobre os $k$ vértices não visitados $U$, somado às menores arestas de conexão às extremidades do caminho:
+    \item \textbf{\texttt{mst} (híbrido $O(1) + O(k^2)$):} aplica primeiro o filtro rápido $LB_{\text{two\_min}}$ e, apenas para os nós sobreviventes, calcula o custo da MST via Prim sobre os $k$ vértices não visitados $U$, somado às menores arestas de conexão às extremidades do caminho:
     \[
         LB_{\text{mst}} = g + \min_{u \in U} d[\text{nxt}, u] + \text{MST}(U) + \min_{u \in U} d[0, u].
     \]
-    Para evitar alocações de listas por nó, a sub-rotina reutiliza buffers pré-alocados (\texttt{unvisited\_buf}, \texttt{in\_mst\_buf}, \texttt{min\_edge\_buf}). Em \textit{benchmark} sintético comparativo (\texttt{scripts/benchmark\_bnb.py}, $N=10..32$), observou-se o ponto de cruzamento em $N \ge 20$: para $N=24$, o modo \texttt{mst} reduziu os nós expandidos de $59.403$ para $434$ ($\approx 137\times$ menos nós) e o tempo de $0{,}1302\text{ s}$ para $0{,}0773\text{ s}$.
+    Para evitar alocações de listas por nó, reutilizamos buffers pré-alocados. No \textit{benchmark} (\texttt{scripts/benchmark\_bnb.py}, $N=10..32$), observou-se o ponto de cruzamento em $N \ge 20$: para $N=24$, o modo \texttt{mst} reduziu os nós expandidos de $59.403$ para $434$ ($\approx 137\times$ menos nós) e o tempo de $0{,}1302\text{ s}$ para $0{,}0773\text{ s}$.
 \end{enumerate}
 
-O controle do limite de tempo ($1800\text{ s}$) é verificado a cada $1024$ nós expandidos (\texttt{nodes\_expanded \& 1023 == 0}) para diluir o custo de chamadas de relógio. Em caso de interrupção por \textit{timeout}, o algoritmo retorna \texttt{elapsed\_time = None} (registrado como \texttt{NA}), preservando \texttt{nodes\_expanded}, \texttt{nodes\_pruned}, \texttt{max\_depth} e a melhor solução parcial encontrada.
+O controle do limite de tempo de $1800\text{ s}$ é verificado a cada $1024$ nós expandidos para evitar a consulta do relógio do sistema a cada nó. Em caso de interrupção por \textit{timeout}, o algoritmo retorna \texttt{elapsed\_time = None} , preservando \texttt{nodes\_expanded}, \texttt{nodes\_pruned}, \texttt{max\_depth} e a melhor solução parcial encontrada.
 
 \subsection{Heurísticas de Warm-Start e Algoritmos Aproximados}
 % TODO (Integrante 1): Descrever:
@@ -143,11 +143,11 @@ O controle do limite de tempo ($1800\text{ s}$) é verificado a cada $1024$ nós
 \section{Experimentos e Resultados}
 
 \subsection{Visão Geral de Desempenho e Ponto de Colapso}
-A Tabela~\ref{tab:resultados_gerais} consolida o desempenho do Branch-and-Bound (usando \texttt{LB=mst} e a melhor estratégia de \textit{warm-start}) frente aos algoritmos aproximados nas 15 instâncias \texttt{EUC\_2D}. Na Faixa Principal ($N \le 40$), o algoritmo exato obteve o ótimo comprovado em \textbf{9 das 12 instâncias (75\%)}, coincidindo integralmente com os custos ótimos de referência. Os tempos variaram de milissegundos em instâncias menores ($0{,}0015\text{ s}$ em \texttt{st70\_n16} e $0{,}0064\text{ s}$ em \texttt{eil51\_n24}) até $34{,}58\text{ s}$ em \texttt{eil51\_n32} e $617{,}78\text{ s}$ ($\approx 10{,}3\text{ min}$) em \texttt{berlin52\_n26}.
+A Tabela~\ref{tab:resultados_gerais} consolida o desempenho do Branch-and-Bound usando \texttt{LB=mst} e a melhor estratégia de \textit{warm-start} frente aos algoritmos aproximados nas 15 instâncias \texttt{EUC\_2D}. Na ``Faixa Principal'', com $N \le 40$, o algoritmo exato obteve o ótimo comprovado em 9 das 12 instâncias (75\%), coincidindo com os custos ótimos de referência. Os tempos variaram de milissegundos em instâncias menores ($0{,}0015\text{ s}$  e $0{,}0064\text{ s}$, por exemplo) até $34{,}58\text{ s}$ em \texttt{eil51\_n32} e $617{,}78\text{ s}$ em \texttt{berlin52\_n26}.
 
-Por outro lado, todas as instâncias da Faixa Limite (\texttt{eil51}, \texttt{berlin52} e \texttt{st70}, com $N \in [51, 70]$) e três instâncias da Faixa Principal (\texttt{berlin52\_n20}, \texttt{berlin52\_n36} e \texttt{st70\_n40}) atingiram o limite de $1800\text{ s}$ (\texttt{NA}), evidenciando o ponto de colapso exponencial da busca exata. Nesse cenário, \textit{Twice-around-the-tree} e \textit{Christofides} mantiveram execução inferior a $14\text{ ms}$ mesmo em $N=70$, com \textit{Christofides} entregando \textit{gaps} consistentemente menores (média de $9{,}46\%$ contra $25{,}16\%$ do \textit{Twice-around-the-tree}).
+Por outro lado, todas as instâncias da ``Faixa Limite'' (\texttt{eil51}, \texttt{berlin52} e \texttt{st70}, com $N \in [51, 70]$) e três instâncias da ``Faixa Principal'' (\texttt{berlin52\_n20}, \texttt{berlin52\_n36} e \texttt{st70\_n40}) atingiram o limite de $1800\text{ s}$, evidenciando o ponto de quebra exponencial da busca exata. Nesse cenário, \textit{Twice-around-the-tree} e \textit{Christofides} mantiveram execução inferior a $14\text{ ms}$ mesmo em $N=70$, com \textit{Christofides} entregando \textit{gaps} consistentemente menores (média de $9{,}46\%$ contra $25{,}16\%$ do primeiro citado). 
 
-Destaca-se ainda que o colapso do Branch-and-Bound não depende exclusivamente de $N$: enquanto \texttt{eil51\_n32} ($N=32$) foi resolvida em $34{,}58\text{ s}$ expandindo $386.460$ nós, \texttt{berlin52\_n20} ($N=20$) estourou $1800\text{ s}$ após expandir mais de $64{,}5$ milhões de nós. Esse comportamento decorre da topologia de \texttt{berlin52\_n20} (alta heterogeneidade local, com agrupamentos separados por longas arestas), na qual a MST dos vértices restantes subestima o custo real de ida e volta entre \textit{clusters}, enfraquecendo a poda.
+Destaca-se ainda que o colapso do Branch-and-Bound não depende exclusivamente de $N$: enquanto \texttt{eil51\_n32} ($N=32$) foi resolvida em $34{,}58\text{ s}$ expandindo $386.460$ nós, \texttt{berlin52\_n20} ($N=20$) estourou $1800\text{ s}$ após expandir mais de $64{,}5$ milhões de nós. Esse comportamento decorre da topologia de \texttt{berlin52\_n20}: alta heterogeneidade local, com agrupamentos separados por longas arestas, na qual a MST dos vértices restantes subestima o custo real de ida e volta grupos, enfraquecendo a poda.
 
 \begin{table}[H]
 \centering
@@ -230,11 +230,11 @@ Destaca-se ainda que o colapso do Branch-and-Bound não depende exclusivamente d
 \subsection{Impacto do Warm-Start na Eficiência de Poda}
 A Tabela~\ref{tab:warm_start} e as Figuras~\ref{fig:warmstart_nodes} e~\ref{fig:warmstart_time_tradeoff} avaliam o impacto das cinco estratégias de inicialização do limite superior sobre a árvore de busca do Branch-and-Bound.
 
-Em termos de restrição do espaço de busca, a estratégia \textbf{\texttt{convex\_hull\_insertion}} apresentou o melhor desempenho médio nas 9 instâncias resolvidas: partindo de um \textit{gap} inicial médio de apenas $2{,}57\%$, reduziu o número de nós expandidos para uma razão média de \textbf{$0{,}699\times$} em relação ao \texttt{cold\_start} (economia de $\approx 30\%$ dos nós) e alcançou a maior taxa média de poda ($91{,}00\%$). Em seguida destacam-se \texttt{christofides} ($0{,}858\times$, \textit{gap} inicial de $9{,}46\%$) e \texttt{twice\_around\_the\_tree} ($0{,}895\times$). O ganho é especialmente visível na Figura~\ref{fig:warmstart_nodes} para instâncias como \texttt{eil51\_n24}, em que \texttt{convex\_hull\_insertion} reduz os nós expandidos de $2.733$ (\texttt{cold\_start}) para $114$ e derruba o tempo total de $0{,}0793\text{ s}$ para $0{,}0065\text{ s}$ (ganho de $\approx 12\times$, Figura~\ref{fig:warmstart_time_tradeoff}).
+Em termos de restrição do espaço de busca, a estratégia \textbf{\texttt{convex\_hull\_insertion}} apresentou o melhor desempenho médio nas 9 instâncias resolvidas: partindo de um \textit{gap} inicial médio de apenas $2{,}57\%$, reduziu o número de nós expandidos para uma razão média de \textbf{$0{,}699\times$} em relação ao \texttt{cold\_start}  e alcançou a maior taxa média de poda ($91{,}00\%$). Em seguida destacam-se \texttt{christofides} ($0{,}858\times$, \textit{gap} inicial de $9{,}46\%$) e \texttt{twice\_around\_the\_tree} ($0{,}895\times$). O ganho é especialmente visível na Figura~\ref{fig:warmstart_nodes} para instâncias como \texttt{eil51\_n24}, em que \texttt{convex\_hull\_insertion} reduz os nós expandidos de $2.733$ para $114$ e derruba o tempo total de $0{,}0793\text{ s}$ para $0{,}0065\text{ s}$.
 
-Nota-se também que \texttt{nearest\_neighbor} apresentou redução discreta frente ao \texttt{cold\_start} (razão média de $0{,}979\times$). Isso ocorre porque o próprio DFS já ordena os filhos pelo vizinho mais próximo; assim, logo na primeira descida até uma folha, o \texttt{cold\_start} encontra uma solução equivalente à gulosa, reduzindo a vantagem relativa de inicializar com \texttt{nearest\_neighbor}.
+Nota-se também que \texttt{nearest\_neighbor} apresentou redução pouco notória frente ao \texttt{cold\_start} . Isso ocorre porque o próprio DFS já ordena os filhos pelo vizinho mais próximo; assim, logo na primeira descida até uma folha, o \texttt{cold\_start} encontra uma solução equivalente à gulosa, reduzindo a vantagem relativa de inicializar com \texttt{nearest\_neighbor}.
 
-Quanto ao \textit{trade-off} computacional, o custo de execução de todas as heurísticas iniciais situou-se entre $0{,}006\text{ ms}$ (\texttt{cold\_start}) e $1{,}372\text{ ms}$ (\texttt{christofides}), valor irrisório diante dos segundos ou minutos exigidos pelo Branch-and-Bound em $N \ge 22$. Portanto, o investimento em uma heurística geométrica de alta qualidade — particularmente \texttt{convex\_hull\_insertion} ou \texttt{christofides} — compensa amplamente, pois antecipa podas em níveis superiores da árvore sem onerar o tempo total.
+Quanto ao \textit{trade-off} computacional, o custo de execução de todas as heurísticas iniciais situou-se entre $0{,}006\text{ ms}$ (\texttt{cold\_start}) e $1{,}372\text{ ms}$ (\texttt{christofides}), valor irrisório diante dos segundos ou minutos exigidos pelo Branch-and-Bound em $N \ge 22$. Portanto, o investimento em uma heurística geométrica, particularmente \texttt{convex\_hull\_insertion} ou \texttt{christofides}, compensa amplamente, pois antecipa podas em níveis superiores da árvore sem onerar o tempo total.
 
 \begin{table}[H]
 \centering
