@@ -3,7 +3,8 @@
 \usepackage[T1]{fontenc}
 \usepackage[brazil]{babel}
 \usepackage{geometry}
-\geometry{a4paper, top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm}
+% Margens oficiais do template de artigos da SBC (bloco de texto 15,0cm x 23,7cm)
+\geometry{a4paper, top=3.5cm, bottom=2.5cm, left=3.0cm, right=3.0cm}
 
 \usepackage{times}
 \usepackage{microtype}
@@ -14,49 +15,95 @@
 \usepackage{float}
 \usepackage{subcaption}
 \usepackage{caption}
+\usepackage{titlesec}
+\usepackage{enumitem}
 \usepackage{xurl}
 \usepackage{hyperref}
 
+% Tipografia e espaçamentos do padrão SBC
+\sloppy
 \emergencystretch=1.5em
+\setlength{\parindent}{1.27cm}
+\setlength{\parskip}{6pt}
+\setlist{nosep, topsep=3pt}
+
+% Títulos de seção (13pt negrito) e subseção (12pt negrito) no padrão SBC
+\titleformat{\section}{\fontsize{13}{15}\selectfont\bfseries}{\thesection.}{0.5em}{}
+\titlespacing*{\section}{0pt}{12pt}{6pt}
+\titleformat{\subsection}{\fontsize{12}{14}\selectfont\bfseries}{\thesubsection.}{0.5em}{}
+\titlespacing*{\subsection}{0pt}{9pt}{3pt}
+
+% Legendas em 10pt com rótulo em negrito (padrão SBC)
+\captionsetup{font=small, labelfont=bf, labelsep=period}
+
+% Ambientes Abstract e Resumo com recuo bilateral de 0,8cm e texto em itálico (padrão SBC)
+\newenvironment{sbcabstract}{%
+    \begin{list}{}{%
+        \setlength{\leftmargin}{0.8cm}%
+        \setlength{\rightmargin}{0.8cm}%
+        \setlength{\listparindent}{0pt}%
+        \setlength{\itemindent}{0pt}%
+        \setlength{\parsep}{0pt}%
+        \setlength{\topsep}{6pt}%
+    }%
+    \item\relax\itshape\noindent\textbf{Abstract.}\hspace{0.4em}\ignorespaces
+}{\end{list}}
+
+\newenvironment{sbcresumo}{%
+    \begin{list}{}{%
+        \setlength{\leftmargin}{0.8cm}%
+        \setlength{\rightmargin}{0.8cm}%
+        \setlength{\listparindent}{0pt}%
+        \setlength{\itemindent}{0pt}%
+        \setlength{\parsep}{0pt}%
+        \setlength{\topsep}{6pt}%
+    }%
+    \item\relax\itshape\noindent\textbf{Resumo.}\hspace{0.4em}\ignorespaces
+}{\end{list}}
+
 \let\origunderscore\_
 \renewcommand{\_}{\origunderscore\hspace{0pt}}
 
 \graphicspath{{./figures/}}
 
-% Configuração dos hyperlinks
+% Configuração discreta de hyperlinks para artigo científico SBC
 \hypersetup{
     colorlinks=true,
-    linkcolor=blue,
-    citecolor=blue,
+    linkcolor=black,
+    citecolor=black,
     urlcolor=blue,
-    pdftitle={Relatório TP2 - Algoritmos 2},
+    pdftitle={Análise Empírica e Otimização para o Caixeiro Viajante Geométrico},
     pdfauthor={Cauã Neto Santos Pires, Rafael Junqueira Baracat, Renato Vilela de Melo},
-    pdfsubject={TP2 - Análise Empírica e Otimização para o Caixeiro Viajante}
+    pdfsubject={DCC207 - Algoritmos 2 - Trabalho Prático 2}
 }
 
 \begin{document}
 
 % =========================
-% CAPA
+% CABEÇALHO DO ARTIGO (PADRÃO SBC)
 % =========================
-\begin{titlepage}
-    \centering
-    {\Large DCC207 - Algoritmos 2}\\[1.5cm]
-    {\Huge \textbf{Trabalho Prático 2}}\\[0.5cm]
-    {\LARGE Análise Empírica e Otimização para o Caixeiro Viajante}\\[2cm]
+\begin{center}
+    {\fontsize{16}{19}\selectfont\bfseries Análise Empírica e Otimização para o Problema do Caixeiro Viajante Geométrico\par}
+    \vspace{12pt}
+    {\fontsize{12}{15}\selectfont\bfseries Cauã Neto Santos Pires, Rafael Junqueira Baracat, Renato Vilela de Melo\par}
+    \vspace{6pt}
+    {\small
+    Departamento de Ciência da Computação -- Instituto de Ciências Exatas (ICEx)\\
+    Universidade Federal de Minas Gerais (UFMG) -- Belo Horizonte, MG -- Brasil\\
+    Matrículas: 2024005335, 2024066024, 2024066016\\
+    \texttt{\{cauanetoescola, junqueira.rafael149, renatovmpacheco\}@gmail.com}\par}
+\end{center}
+\vspace{6pt}
 
-    \vfill
-    \textbf{Alunos:} \underline{Cauã Neto Santos Pires, Rafael Junqueira Baracat, Renato Vilela de Melo} \\[0.5cm]
-    \textbf{Matrículas:} \underline{2024005335, 2024066024, 2024066016} \\[3cm]
+\begin{sbcabstract}
+This paper presents an algorithmic audit, subroutine-level profiling, and empirical complexity modeling for the Euclidean Traveling Salesman Problem (\texttt{EUC\_2D}). We evaluate an exact Branch-and-Bound solver alongside the \textup{Twice-around-the-tree} ($2$-approximation) and \textup{Christofides} ($1.5$-approximation) algorithms across 15 TSPLIB-based instances ($N \in [12, 70]$), comparing five warm-start upper-bound strategies. Combining DFS, bitmask state encoding, $O(1)$ cycle-symmetry breaking, and preallocated MST lower bounds solves $75\%$ of main-band instances ($N \le 40$) within $1800\text{ s}$. Convex Hull Insertion achieves the best warm-start trade-off ($1.43\%$ mean initial gap on solved instances and $\approx 30\%$ node reduction), subroutine profiling isolates minimum-weight perfect matching as over $90\%$ of Christofides' runtime at $N=70$, and topological sensitivity analysis reveals convex-hull ratio and spatial entropy as key drivers of approximation quality.
+\end{sbcabstract}
 
-    {\large ICEx -- UFMG \\ 2026/2}
-\end{titlepage}
+\begin{sbcresumo}
+Este artigo apresenta uma auditoria algorítmica, \textup{profiling} em nível de sub-rotina e modelagem empírica de complexidade aplicados ao Problema do Caixeiro Viajante Geométrico (\texttt{EUC\_2D}). Avaliam-se um algoritmo exato baseado em \textup{Branch-and-Bound} e os algoritmos aproximados \textup{Twice-around-the-tree} ($2$-aproximação) e \textup{Christofides} ($1{,}5$-aproximação) sobre 15 instâncias derivadas da TSPLIB ($N \in [12, 70]$), comparando cinco estratégias de \textup{warm-start}. A combinação de DFS, codificação em \textup{bitmask}, quebra de simetria em $O(1)$ e limite inferior via MST com buffers pré-alocados resolve $75\%$ das instâncias da faixa principal ($N \le 40$) em até $1800\text{ s}$. A Inserção por Fecho Convexo obtém o melhor custo-benefício como \textup{warm-start} (\textup{gap} inicial médio de $1{,}43\%$ nas resolvidas e redução de $\approx 30\%$ nos nós expandidos), o \textup{profiling} isola o emparelhamento perfeito como mais de $90\%$ do tempo do \textup{Christofides} em $N=70$, e a análise de sensibilidade evidencia o papel da proporção no fecho convexo e da entropia espacial na qualidade das aproximações.
+\end{sbcresumo}
 
-% =========================
-% SUMÁRIO
-% =========================
-\tableofcontents
-\newpage
+\vspace{6pt}
 
 % =========================
 % 1. INTRODUÇÃO
