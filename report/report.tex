@@ -413,7 +413,7 @@ Cormen, T. H., Leiserson, C. E., Rivest, R. L., and Stein, C. (2009).
 % ==============================================================================
 \appendix
 \section{Histórico de Prompts Utilizados (Uso de LLMs)}
-Conforme a política de avaliação da disciplina, ferramentas de IA generativa (Google Antigravity / Gemini) foram empregadas como assistentes de planejamento arquitetural, codificação, instrumentação e estruturação experimental, mantendo-se a auditoria algorítmica de baixo nível, a validação empírica e a revisão textual sob responsabilidade dos autores. Os registros detalhados por frente de desenvolvimento — incluindo os \textit{prompts} utilizados e as respectivas decisões técnicas — encontram-se versionados no diretório \texttt{prompts/} do repositório (\texttt{01\_bnb\_pipeline\_e\_relatorio.md} e \texttt{02\_mst\_profiling\_e\_twice\_around.md}) e sintetizados na Tabela~\ref{tab:historico_prompts}.
+Conforme a política de avaliação da disciplina, ferramentas de IA generativa (Google Antigravity / Gemini) foram empregadas como assistentes de planejamento arquitetural, codificação, instrumentação e estruturação experimental, mantendo-se a auditoria algorítmica de baixo nível, a validação empírica e a revisão textual sob responsabilidade dos autores. Os registros detalhados por frente de desenvolvimento — incluindo os \textit{prompts} utilizados e as respectivas decisões técnicas — encontram-se versionados no diretório \texttt{prompts/} do repositório (\texttt{01\_bnb\_pipeline\_e\_relatorio.md}, \texttt{02\_mst\_profiling\_e\_twice\_around.md} e \texttt{03\_christofides.md}) e sintetizados na Tabela~\ref{tab:historico_prompts}.
 
 \begin{table}[H]
 \centering
@@ -431,8 +431,9 @@ Conforme a política de avaliação da disciplina, ferramentas de IA generativa 
 6. Segundo LB & Benchmark e \textit{lower bound} baseado em MST & Ponto de cruzamento em $N \ge 20$ e buffers pré-alocados \\
 7. Instâncias TSPLIB & Parser \texttt{EUC\_2D} e seleção de 15 instâncias & Ausência de \texttt{EUC\_2D} com $N \le 40$ na TSPLIB95 e \texttt{nint} \\
 8. Pipeline & Heurísticas, \textit{features}, \texttt{runner} e análise & \textit{Monotone Chain} para colineares e gravação \texttt{NA} \\
-9. Refatoração & Memória por sub-rotina e rigor estatístico & CH $O(N^3) \to O(N^2)$, simetria $O(1)$, MILP/DFJ e LOOCV \\
-10. Relatório & Tabelas, figuras e revisão técnica do texto & Conferência numérica contra CSVs e revisão de clareza \\
+9. Christofides & Concepção e implementação $1{,}5$-aproximada & Reuso de \texttt{compute\_mst\_prim}, NetworkX só p/ suporte (sem \texttt{maxcardinality}) \\
+10. Refatoração & Memória por sub-rotina e rigor estatístico & CH $O(N^3) \to O(N^2)$, simetria $O(1)$, MILP/DFJ e LOOCV \\
+11. Relatório & Tabelas, figuras e revisão técnica do texto & Conferência numérica contra CSVs e revisão de clareza \\
 \bottomrule
 \end{tabular}%
 }
