@@ -398,7 +398,7 @@ The pandas development team (2026).
 % ==============================================================================
 \appendix
 \section{Histórico de Prompts Utilizados (Uso de LLMs)}
-Conforme a política de avaliação da disciplina, ferramentas de IA generativa (Google Antigravity / Gemini) foram empregadas como assistentes de codificação, instrumentação e estruturação experimental, mantendo-se a auditoria técnica, validação empírica e revisão textual sob responsabilidade dos autores. O registro cronológico dos \textit{prompts} encontra-se versionado no diretório \texttt{prompts/} do repositório e sintetizado na Tabela~\ref{tab:historico_prompts}.
+Conforme a política de avaliação da disciplina, ferramentas de IA generativa (Google Antigravity / Gemini) foram empregadas como assistentes de planejamento arquitetural, codificação, instrumentação e estruturação experimental, mantendo-se a auditoria algorítmica de baixo nível, a validação empírica e a revisão textual sob responsabilidade dos autores. Os registros detalhados por frente de desenvolvimento — incluindo os \textit{prompts} utilizados e as respectivas decisões técnicas — encontram-se versionados no diretório \texttt{prompts/} do repositório (\texttt{01\_bnb\_pipeline\_e\_relatorio.md} e \texttt{02\_mst\_profiling\_e\_twice\_around.md}) e sintetizados na Tabela~\ref{tab:historico_prompts}.
 
 \begin{table}[H]
 \centering
@@ -408,13 +408,16 @@ Conforme a política de avaliação da disciplina, ferramentas de IA generativa 
 \begin{tabular}{@{}lll@{}}
 \toprule
 \textbf{Etapa} & \textbf{Objetivo do Prompt} & \textbf{Auditoria / Decisão Humana} \\ \midrule
-1. Estrutura & Divisão do grupo e contratos em Python~3 & Contratos em \texttt{types.py} e \texttt{track\_memory=False} \\
-2. Branch-and-Bound & Implementação DFS, \textit{bitmask} e testes & Quebra de simetria $O(1)$ e reuso de \texttt{profiling.py} \\
-3. Segundo LB & Benchmark e \textit{lower bound} baseado em MST & Ponto de cruzamento em $N \ge 20$ e buffers pré-alocados \\
-4. Instâncias TSPLIB & Parser \texttt{EUC\_2D} e seleção de 15 instâncias & Descoberta da ausência de \texttt{EUC\_2D} com $N \le 40$ na TSPLIB95 \\
-5. Pipeline & Heurísticas, \textit{features}, \textit{runner} e análise & \textit{Monotone Chain} para colineares e gravação \texttt{NA} \\
-6. Refatoração & Correções de complexidade e rigor estatístico & CH $O(N^3) \to O(N^2)$, ótimos MILP/DFJ, Spearman e LOOCV \\
-7. Relatório & Tabelas, figuras e revisão técnica do texto & Conferência numérica contra CSVs e revisão de clareza \\
+1. Estrutura & Divisão do grupo e contratos em Python~3 & Contratos em \texttt{types.py} e \texttt{measure\_subroutine} \\
+2. Plano TATT/MST & Análise de contexto e plano da $2$-aproximação & Descarte de \texttt{networkx} e \texttt{csgraph} (erro em peso $0{,}0$) \\
+3. MST (Prim Denso) & Implementação desacoplada em vetores 1D & Prim $O(N^2)$ sem \textit{heap} em \texttt{mst.py} e auditoria de \texttt{improved} \\
+4. Memória e TATT & Utilitário \texttt{tracemalloc} e \texttt{twice\_around\_the\_tree} & Diretriz \texttt{track\_memory=False} e DFS iterativo $O(N)$ \\
+5. Branch-and-Bound & Implementação DFS, \textit{bitmask} e testes & Ordenação \textit{nearest-first} e reuso de \texttt{profiling.py} \\
+6. Segundo LB & Benchmark e \textit{lower bound} baseado em MST & Ponto de cruzamento em $N \ge 20$ e buffers pré-alocados \\
+7. Instâncias TSPLIB & Parser \texttt{EUC\_2D} e seleção de 15 instâncias & Ausência de \texttt{EUC\_2D} com $N \le 40$ na TSPLIB95 e \texttt{nint} \\
+8. Pipeline & Heurísticas, \textit{features}, \texttt{runner} e análise & \textit{Monotone Chain} para colineares e gravação \texttt{NA} \\
+9. Refatoração & Memória por sub-rotina e rigor estatístico & CH $O(N^3) \to O(N^2)$, simetria $O(1)$, MILP/DFJ e LOOCV \\
+10. Relatório & Tabelas, figuras e revisão técnica do texto & Conferência numérica contra CSVs e revisão de clareza \\
 \bottomrule
 \end{tabular}%
 }
