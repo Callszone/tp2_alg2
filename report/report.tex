@@ -65,7 +65,7 @@ Este trabalho tem como objetivo abordar os aspectos práticos na codificação, 
   \item \textbf{Christofides} de saída aproximada ($1{,}5$-aproximação).
 \end{itemize}
 
-Não somente isso, auditamos criticamente o uso de estruturas de dados, gargalos teóricos \textit{versus} práticos, o impacto de cinco estratégias de \textit{warm-start}, \texit{nearest neighbor}, Inserção por Fecho Convexo, \textit{Twice-around-the-tree} e \textit{Christofides}) na poda da árvore de busca e como a topologia das instâncias impacta o \textit{gap} de aproximação e o colapso da busca exata.
+Não somente isso, auditamos criticamente o uso de estruturas de dados, gargalos teóricos \textit{versus} práticos, o impacto de cinco estratégias de \textit{warm-start}, \textit{nearest neighbor}, Inserção por Fecho Convexo, \textit{Twice-around-the-tree} e \textit{Christofides} na poda da árvore de busca e como a topologia das instâncias impacta o \textit{gap} de aproximação e o colapso da busca exata.
 
 % TODO (Integrante 3): Expandir contextualização sobre o compromisso otimalidade vs. escalabilidade e resumir a organização das seções 2 a 5.
 
@@ -147,7 +147,7 @@ A Tabela~\ref{tab:resultados_gerais} consolida o desempenho do Branch-and-Bound 
 
 Por outro lado, todas as instâncias da ``Faixa Limite'' (\texttt{eil51}, \texttt{berlin52} e \texttt{st70}, com $N \in [51, 70]$) e três instâncias da ``Faixa Principal'' (\texttt{berlin52\_n20}, \texttt{berlin52\_n36} e \texttt{st70\_n40}) atingiram o limite de $1800\text{ s}$, evidenciando o ponto de quebra exponencial da busca exata. Nesse cenário, \textit{Twice-around-the-tree} e \textit{Christofides} mantiveram execução inferior a $14\text{ ms}$ mesmo em $N=70$, com \textit{Christofides} entregando \textit{gaps} consistentemente menores (média de $9{,}46\%$ contra $25{,}16\%$ do primeiro citado). 
 
-Destaca-se ainda que o colapso do Branch-and-Bound não depende exclusivamente de $N$: enquanto \texttt{eil51\_n32} ($N=32$) foi resolvida em $34{,}58\text{ s}$ expandindo $386.460$ nós, \texttt{berlin52\_n20} ($N=20$) estourou $1800\text{ s}$ após expandir mais de $64{,}5$ milhões de nós. Esse comportamento decorre da topologia de \texttt{berlin52\_n20}: alta heterogeneidade local, com agrupamentos separados por longas arestas, na qual a MST dos vértices restantes subestima o custo real de ida e volta grupos, enfraquecendo a poda.
+Destaca-se ainda que o colapso do Branch-and-Bound não depende exclusivamente de $N$: enquanto \texttt{eil51\_n32} ($N=32$) foi resolvida em $34{,}58\text{ s}$ expandindo $386.460$ nós, \texttt{berlin52\_n20} ($N=20$) estourou $1800\text{ s}$ após expandir mais de $64{,}5$ milhões de nós. Esse comportamento decorre da topologia de \texttt{berlin52\_n20}: alta heterogeneidade local, com agrupamentos separados por longas arestas, na qual a MST dos vértices restantes subestima o custo real de ida e volta entre grupos, enfraquecendo a poda.
 
 \begin{table}[H]
 \centering
