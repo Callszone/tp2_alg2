@@ -63,14 +63,14 @@
 % =========================
 \section{Introdução}
 
-Este trabalho tem como objetivo abordar os aspectos práticos na codificação, a nível de implementação e auditoria, sob a ótica da avaliação de métricas, de algoritmos para problemas computacionalmente difíceis (NP-Difíceis). Para tal, concentramos nossos esforços na aplicação ao Problema do Caixeiro Viajante (TSP) Geométrico, investigando três abordagens: 
+Este trabalho tem como objetivo abordar os aspectos práticos na codificação, a nível de implementação e auditoria, sob a ótica da avaliação de métricas, de algoritmos para problemas computacionalmente difíceis (NP-Difíceis). Para tal, concentramos nossos esforços na aplicação ao Problema do Caixeiro Viajante (TSP) Geométrico~\cite{vimieiro2026slides, vimieiro2026tp2}, investigando três abordagens: 
 \begin{itemize}
   \item \textbf{Branch-and-Bound} de saída exata;
   \item \textbf{Twice-around-the-tree} de saída aproximada ($2$-aproximação);
   \item \textbf{Christofides} de saída aproximada ($1{,}5$-aproximação).
 \end{itemize}
 
-Não somente isso, auditamos criticamente o uso de estruturas de dados, gargalos teóricos \textit{versus} práticos, o impacto de cinco estratégias de \textit{warm-start}, \textit{nearest neighbor}, Inserção por Fecho Convexo, \textit{Twice-around-the-tree} e \textit{Christofides} na poda da árvore de busca e como a topologia das instâncias impacta o \textit{gap} de aproximação e o colapso da busca exata.
+Não somente isso, auditamos criticamente o uso de estruturas de dados, gargalos teóricos \textit{versus} práticos, o impacto de cinco estratégias de \textit{warm-start} (\textit{Cold Start}, \textit{Nearest Neighbor}, Inserção por Fecho Convexo, \textit{Twice-around-the-tree} e \textit{Christofides}) na poda da árvore de busca e como a topologia das instâncias impacta o \textit{gap} de aproximação e o colapso da busca exata.
 
 O estudo busca equilibrar a garantia de otimalidade dos métodos exatos frente à escalabilidade polinomial das heurísticas e algoritmos aproximados. O restante deste relatório está organizado da seguinte forma: a Seção~2 detalha a arquitetura, a implementação e a auditoria de gargalos; a Seção~3 apresenta a metodologia experimental e a extração de \textit{features}; a Seção~4 discute os resultados de complexidade, \textit{warm-start} e sensibilidade topológica; e a Seção~5 sintetiza as conclusões.
 
@@ -118,8 +118,8 @@ Além do algoritmo exato, foram implementadas cinco estratégias geradoras de ci
     \item \textbf{\textit{Cold Start}:} constrói a rota trivial na ordem dos índices ($0 \to 1 \to \dots \to N-1 \to 0$) em tempo $O(N)$, servindo como linha de base.
     \item \textbf{\textit{Nearest Neighbor}:} inicia no vértice $0$ e seleciona iterativamente o vértice não visitado mais próximo em tempo $O(N^2)$ e espaço auxiliar $O(N)$.
     \item \textbf{\textit{Convex Hull Insertion}:} calcula inicialmente o fecho convexo via \textit{Andrew's Monotone Chain} em $O(N \log N)$ , evitando falhas  em pontos colineares, e insere os vértices internos por \textit{Cheapest Insertion}, minimizando $\Delta = d[u, k] + d[k, w] - d[u, w]$.
-    \item \textbf{\textit{Twice-around-the-tree} ($2$-aproximação):} constrói a MST via algoritmo de Prim (em $O(N^2)$ sobre vetores 1D) e realiza caminhamento em pré-ordem iterativo com pilha em $O(N)$, evitando risco de estouro de pilha recursiva.
-    \item \textbf{\textit{Christofides} ($1{,}5$-aproximação):} obtém a MST via Prim, identifica os vértices de grau ímpar, calcula o emparelhamento perfeito de peso mínimo (\textit{Blossom} via \texttt{nx.min\_weight\_matching}), extrai um circuito euleriano no multigrafo resultante e aplica atalhos (\textit{shortcutting}) em $O(N)$ para eliminar repetições.
+    \item \textbf{\textit{Twice-around-the-tree} ($2$-aproximação):} constrói a MST via algoritmo de Prim adaptado para grafos densos~\cite{coutinho2026} (em $O(N^2)$ sobre vetores 1D) e realiza caminhamento em pré-ordem iterativo com pilha em $O(N)$, evitando risco de estouro de pilha recursiva.
+    \item \textbf{\textit{Christofides} ($1{,}5$-aproximação):} obtém a MST via Prim, identifica os vértices de grau ímpar, calcula o emparelhamento perfeito de peso mínimo (\textit{Blossom} via \texttt{nx.min\_weight\_matching}~\cite{networkx_docs}), extrai um circuito euleriano no multigrafo resultante e aplica atalhos (\textit{shortcutting}) em $O(N)$ para eliminar repetições.
 \end{enumerate}
 
 \subsection{Auditoria de Código, Refatorações e Gargalos de Sub-rotina}
@@ -191,11 +191,11 @@ Destaca-se ainda que o colapso do Branch-and-Bound não depende exclusivamente d
 \end{table}
 
 \subsection{Profiling de Sub-rotinas e Modelagem de Complexidade Empírica}
-A Tabela~\ref{tab:regressao_complexidade} e as Figuras~\ref{fig:complexity_time}, \ref{fig:complexity_memory} e~\ref{fig:christofides_subroutines} apresentam os ajustes de regressão linear não negativa sobre curvas teóricas candidatas para métodos polinomiais e $O(b^N)$ em escala log-linear para o Branch-and-Bound.
+A Tabela~\ref{tab:regressao_complexidade} e as Figuras~\ref{fig:complexity_time}, \ref{fig:complexity_memory} e~\ref{fig:christofides_subroutines} apresentam os ajustes de regressão linear não negativa sobre curvas teóricas candidatas para métodos polinomiais e $O(b^N)$ em escala log-linear para o Branch-and-Bound, consolidados via \texttt{pandas}~\cite{pandas_docs} em \texttt{src/analysis.py}.
 
-Sob o viés temporal ~\ref{fig:complexity_time}, \texttt{nearest\_neighbor} ($R^2 = 0{,}987$), \texttt{convex\_hull\_insertion} ($R^2 = 0{,}959$) e \texttt{twice\_around\_the\_tree} ($R^2 = 0{,}875$) aderiram à curva $O(N^2)$, confirmando a análise teórica e a eficácia da refatoração do \textit{Convex Hull}. O algoritmo de \textit{Christofides} apresentou melhor ajuste empírico em $O(N^2)$ ($R^2 = 0{,}912$) do que em $O(N^3)$ na faixa testada ($N \le 70$), uma vez que o crescimento é associado diretamente por \texttt{min\_weight\_matching} ($R^2 = 0{,}907$) e, em grafos pequenos, termos de menor ordem e constantes da implementação em Python/NetworkX mascaram o termo cúbico assintótico. Já o Branch-and-Bound apresentou $R^2 = 0{,}552$ no modelo log-linear $O(b^N)$, pois a dificuldade real varia fortemente conforme a geometria de cada instância (como visto entre $N=20$ e $N=32$).
+Sob o viés temporal (Figura~\ref{fig:complexity_time}), \texttt{nearest\_neighbor} ($R^2 = 0{,}987$), \texttt{convex\_hull\_insertion} ($R^2 = 0{,}959$) e \texttt{twice\_around\_the\_tree} ($R^2 = 0{,}875$) aderiram à curva $O(N^2)$, confirmando a análise teórica e a eficácia da refatoração do \textit{Convex Hull}. O algoritmo de \textit{Christofides} apresentou melhor ajuste empírico em $O(N^2)$ ($R^2 = 0{,}912$) do que em $O(N^3)$ na faixa testada ($N \le 70$), uma vez que o crescimento é associado diretamente por \texttt{min\_weight\_matching} ($R^2 = 0{,}907$) e, em grafos pequenos, termos de menor ordem e constantes da implementação em Python/NetworkX mascaram o termo cúbico assintótico. Já o Branch-and-Bound apresentou $R^2 = 0{,}552$ no modelo log-linear $O(b^N)$, pois a dificuldade real varia fortemente conforme a geometria de cada instância (como visto entre $N=20$ e $N=32$).
 
-Já no domínio espacial ~\ref{fig:complexity_memory}, observa-se nítida separação entre duas classes de uso de memória: \texttt{nearest\_neighbor} ($O(N)$, $R^2 = 0{,}995$) e \texttt{twice\_around\_the\_tree} ($O(N \log N)$, $R^2 = 0{,}999$) permanecem abaixo de $6\text{ KB}$ até $N=70$, enquanto \texttt{convex\_hull\_insertion} ($O(N^2)$, $R^2 = 1{,}000$), \texttt{bnb:mst} ($O(N^2)$, $R^2 = 1{,}000$) e \texttt{christofides} ($O(N^2)$, $R^2 = 0{,}959$) escalam quadraticamente devido à conversão da matriz para lista de listas e, no caso do \textit{Christofides}, à construção do subgrafo de vértices ímpares ($\approx 352\text{ KB}$ em $N=70$). A Figura~\ref{fig:christofides_subroutines} confirma visualmente que o emparelhamento perfeito domina o perfil do \textit{Christofides} conforme $N$ cresce.
+Já no domínio espacial (Figura~\ref{fig:complexity_memory}), observa-se nítida separação entre duas classes de uso de memória: \texttt{nearest\_neighbor} ($O(N)$, $R^2 = 0{,}995$) e \texttt{twice\_around\_the\_tree} ($O(N \log N)$, $R^2 = 0{,}999$) permanecem abaixo de $6\text{ KB}$ até $N=70$, enquanto \texttt{convex\_hull\_insertion} ($O(N^2)$, $R^2 = 1{,}000$), \texttt{bnb:mst} ($O(N^2)$, $R^2 = 1{,}000$) e \texttt{christofides} ($O(N^2)$, $R^2 = 0{,}959$) escalam quadraticamente devido à conversão da matriz para lista de listas e, no caso do \textit{Christofides}, à construção do subgrafo de vértices ímpares ($\approx 352\text{ KB}$ em $N=70$). A Figura~\ref{fig:christofides_subroutines} confirma visualmente que o emparelhamento perfeito domina o perfil do \textit{Christofides} conforme $N$ cresce.
 
 \begin{table}[H]
 \centering
@@ -319,7 +319,32 @@ a interpretação de resultados e orquestramento de testes teve movimento basila
 % REFERÊNCIAS BIBLIOGRÁFICAS
 % ==============================================================================
 \begin{thebibliography}{9}
-\bibitem{ref1} Especificação do Trabalho Prático 2 - Análise Empírica e Otimização para o Caixeiro Viajante, DCC/ICEx/UFMG.
+
+\bibitem{vimieiro2026slides}
+Vimieiro, R. (2026a).
+\newblock \emph{Slides de Aula da Disciplina DCC207 -- Algoritmos 2 (2026/2)}.
+\newblock Departamento de Ciência da Computação, Instituto de Ciências Exatas, Universidade Federal de Minas Gerais (DCC/ICEx/UFMG).
+
+\bibitem{vimieiro2026tp2}
+Vimieiro, R. (2026b).
+\newblock \emph{Especificação do Trabalho Prático 2 -- Análise Empírica e Otimização para o Caixeiro Viajante (DCC207 -- Algoritmos 2, 2026/2)}.
+\newblock Departamento de Ciência da Computação, Instituto de Ciências Exatas, Universidade Federal de Minas Gerais (DCC/ICEx/UFMG).
+
+\bibitem{coutinho2026}
+Coutinho, G. (2026).
+\newblock \emph{Notas de Aula de Teoria dos Grafos (2026/2)}.
+\newblock Departamento de Ciência da Computação, Instituto de Ciências Exatas, Universidade Federal de Minas Gerais (DCC/ICEx/UFMG).
+
+\bibitem{networkx_docs}
+NetworkX Developers (2026).
+\newblock \emph{NetworkX Documentation -- Network Analysis in Python}.
+\newblock Disponível em: \url{https://networkx.org/documentation/stable/}. Acesso em: nov. 2026.
+
+\bibitem{pandas_docs}
+The pandas development team (2026).
+\newblock \emph{pandas Documentation -- Python Data Analysis Library}.
+\newblock Disponível em: \url{https://pandas.pydata.org/docs/}. Acesso em: nov. 2026.
+
 \end{thebibliography}
 
 % ==============================================================================
