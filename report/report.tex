@@ -188,9 +188,9 @@ Destaca-se ainda que o colapso do Branch-and-Bound não depende exclusivamente d
 \subsection{Profiling de Sub-rotinas e Modelagem de Complexidade Empírica}
 A Tabela~\ref{tab:regressao_complexidade} e as Figuras~\ref{fig:complexity_time}, \ref{fig:complexity_memory} e~\ref{fig:christofides_subroutines} apresentam os ajustes de regressão linear não negativa sobre curvas teóricas candidatas para métodos polinomiais e $O(b^N)$ em escala log-linear para o Branch-and-Bound.
 
-Sob o viés temporal ~\ref{fig:complexity_time}, \texttt{nearest\_neighbor} ($R^2 = 0{,}987$), \texttt{convex\_hull\_insertion} ($R^2 = 0{,}959$) e \texttt{twice\_around\_the\_tree} ($R^2 = 0{,}875$) aderiram à curva quadrática $O(N^2)$, confirmando a análise teórica e a eficácia da refatoração do \textit{Convex Hull}. O algoritmo de \textit{Christofides} apresentou melhor ajuste empírico em $O(N^2)$ ($R^2 = 0{,}912$) do que em $O(N^3)$ na faixa testada ($N \le 70$), uma vez que o crescimento é governado diretamente por \texttt{min\_weight\_matching} ($R^2 = 0{,}907$) e, em grafos pequenos, termos de menor ordem e constantes da implementação em Python/NetworkX mascaram o termo cúbico assintótico. Já o Branch-and-Bound apresentou $R^2 = 0{,}552$ no modelo log-linear $O(b^N)$, pois a dificuldade real varia fortemente conforme a geometria de cada instância (como visto entre $N=20$ e $N=32$).
+Sob o viés temporal ~\ref{fig:complexity_time}, \texttt{nearest\_neighbor} ($R^2 = 0{,}987$), \texttt{convex\_hull\_insertion} ($R^2 = 0{,}959$) e \texttt{twice\_around\_the\_tree} ($R^2 = 0{,}875$) aderiram à curva $O(N^2)$, confirmando a análise teórica e a eficácia da refatoração do \textit{Convex Hull}. O algoritmo de \textit{Christofides} apresentou melhor ajuste empírico em $O(N^2)$ ($R^2 = 0{,}912$) do que em $O(N^3)$ na faixa testada ($N \le 70$), uma vez que o crescimento é associado diretamente por \texttt{min\_weight\_matching} ($R^2 = 0{,}907$) e, em grafos pequenos, termos de menor ordem e constantes da implementação em Python/NetworkX mascaram o termo cúbico assintótico. Já o Branch-and-Bound apresentou $R^2 = 0{,}552$ no modelo log-linear $O(b^N)$, pois a dificuldade real varia fortemente conforme a geometria de cada instância (como visto entre $N=20$ e $N=32$).
 
-Já no domínio espacial (Figura~\ref{fig:complexity_memory}), observa-se nítida separação entre duas classes de uso de memória: \texttt{nearest\_neighbor} ($O(N)$, $R^2 = 0{,}995$) e \texttt{twice\_around\_the\_tree} ($O(N \log N)$, $R^2 = 0{,}999$) permanecem abaixo de $6\text{ KB}$ até $N=70$, enquanto \texttt{convex\_hull\_insertion} ($O(N^2)$, $R^2 = 1{,}000$), \texttt{bnb:mst} ($O(N^2)$, $R^2 = 1{,}000$) e \texttt{christofides} ($O(N^2)$, $R^2 = 0{,}959$) escalam quadraticamente devido à conversão da matriz para lista de listas e, no caso do \textit{Christofides}, à construção do subgrafo denso de vértices ímpares (alcançando $\approx 352\text{ KB}$ em $N=70$). A Figura~\ref{fig:christofides_subroutines} confirma visualmente que o emparelhamento perfeito domina o perfil do \textit{Christofides} conforme $N$ cresce.
+Já no domínio espacial ~\ref{fig:complexity_memory}, observa-se nítida separação entre duas classes de uso de memória: \texttt{nearest\_neighbor} ($O(N)$, $R^2 = 0{,}995$) e \texttt{twice\_around\_the\_tree} ($O(N \log N)$, $R^2 = 0{,}999$) permanecem abaixo de $6\text{ KB}$ até $N=70$, enquanto \texttt{convex\_hull\_insertion} ($O(N^2)$, $R^2 = 1{,}000$), \texttt{bnb:mst} ($O(N^2)$, $R^2 = 1{,}000$) e \texttt{christofides} ($O(N^2)$, $R^2 = 0{,}959$) escalam quadraticamente devido à conversão da matriz para lista de listas e, no caso do \textit{Christofides}, à construção do subgrafo de vértices ímpares ($\approx 352\text{ KB}$ em $N=70$). A Figura~\ref{fig:christofides_subroutines} confirma visualmente que o emparelhamento perfeito domina o perfil do \textit{Christofides} conforme $N$ cresce.
 
 \begin{table}[H]
 \centering
@@ -245,7 +245,7 @@ Em termos de restrição do espaço de busca, a estratégia \textbf{\texttt{conv
 
 Nota-se também que \texttt{nearest\_neighbor} apresentou redução pouco notória frente ao \texttt{cold\_start} . Isso ocorre porque o próprio DFS já ordena os filhos pelo vizinho mais próximo; assim, logo na primeira descida até uma folha, o \texttt{cold\_start} encontra uma solução equivalente à gulosa, reduzindo a vantagem relativa de inicializar com \texttt{nearest\_neighbor}.
 
-Quanto ao \textit{trade-off} computacional, o custo de execução de todas as heurísticas iniciais situou-se entre $0{,}006\text{ ms}$ (\texttt{cold\_start}) e $1{,}372\text{ ms}$ (\texttt{christofides}), valor irrisório diante dos segundos ou minutos exigidos pelo Branch-and-Bound em $N \ge 22$. Portanto, o investimento em uma heurística geométrica, particularmente \texttt{convex\_hull\_insertion} ou \texttt{christofides}, compensa amplamente, pois antecipa podas em níveis superiores da árvore sem onerar o tempo total.
+Quanto ao \textit{trade-off} computacional, o custo de execução de todas as heurísticas iniciais situou-se entre $0{,}006\text{ ms}$ (\texttt{cold\_start}) e $1{,}372\text{ ms}$ (\texttt{christofides}), valor pouco notório diante dos segundos ou minutos exigidos pelo Branch-and-Bound em $N \ge 22$. Portanto, o investimento em uma heurística geométrica, particularmente \texttt{convex\_hull\_insertion} ou \texttt{christofides}, compensa amplamente, pois antecipa podas em níveis superiores da árvore sem onerar o tempo total.
 
 \begin{table}[H]
 \centering
@@ -280,15 +280,15 @@ Quanto ao \textit{trade-off} computacional, o custo de execução de todas as he
 \end{figure}
 
 \subsection{Análise de Sensibilidade Topológica e Instâncias Adversariais}
-A Figura~\ref{fig:sensitivity_importance} combina a importância das \textit{features} em Árvores de Decisão regularizadas (\texttt{max\_depth=2}) e a correlação de postos de Spearman ($\rho$) em relação ao \textit{gap} de aproximação sobre os ótimos exatos das 15 instâncias.
+A Figura~\ref{fig:sensitivity_importance} combina a importância das \textit{features} em Árvores de Decisão e a correlação de postos de Spearman ($\rho$) em relação ao \textit{gap} de aproximação sobre os ótimos exatos das 15 instâncias.
 
 Os resultados revelam dois mecanismos geométricos estatisticamente significativos ($p < 0{,}05$):
 \begin{itemize}
-    \item \textbf{Efeito protetor da fronteira convexa (\texttt{convex\_hull\_ratio}):} apresenta forte correlação negativa com o \textit{gap} de \texttt{convex\_hull\_insertion} ($\rho = -0{,}708$, $p = 0{,}0031$) e de \texttt{christofides} ($\rho = -0{,}624$, $p = 0{,}0130$; Pearson $r = -0{,}730$). Quanto maior a fração de pontos sobre o fecho convexo, menor é a liberdade topológica no interior, aproximando a rota inicial ou o emparelhamento do ciclo ótimo.
+    \item \textbf{Efeito da fronteira convexa (\texttt{convex\_hull\_ratio}):} apresenta forte correlação negativa com o \textit{gap} de \texttt{convex\_hull\_insertion} ($\rho = -0{,}708$, $p = 0{,}0031$) e de \texttt{christofides} ($\rho = -0{,}624$, $p = 0{,}0130$; Pearson $r = -0{,}730$). Quanto maior a fração de pontos sobre o fecho convexo, menor é a liberdade topológica no interior, aproximando a rota inicial ou o emparelhamento do ciclo ótimo.
     \item \textbf{Penalização por dispersão uniforme (\texttt{spatial\_entropy}):} correlaciona-se positivamente com o \textit{gap} de \texttt{nearest\_neighbor} ($\rho = +0{,}646$, $p = 0{,}0092$) e de \texttt{twice\_around\_the\_tree} ($\rho = +0{,}621$, $p = 0{,}0134$). Em instâncias altamente dispersas, escolhas gulosas locais deixam vértices isolados para o fechamento da rota e os atalhos em pré-ordem na MST produzem cruzamentos mais custosos.
 \end{itemize}
 
-Como caso adversarial emblemático para a busca exata, destaca-se \texttt{berlin52\_n20} ($N=20$, \texttt{nn\_dist\_cv = 1,14}), que não convergiu em $1800\text{ s}$, ao passo que \texttt{eil51\_n32} ($N=32$, \texttt{nn\_dist\_cv = 0,24}, \texttt{spatial\_entropy = 0,97}) foi resolvida em $34{,}58\text{ s}$. A alta heterogeneidade de distâncias em \texttt{berlin52\_n20} gera \textit{clusters} compactos separados por grandes lacunas, situação em que a MST subestima severamente as múltiplas travessias necessárias para fechar um ciclo hamiltoniano.
+Como caso adversarial para a busca exata, destaca-se \texttt{berlin52\_n20} ($N=20$, \texttt{nn\_dist\_cv = 1,14}), que não convergiu em $1800\text{ s}$, ao passo que \texttt{eil51\_n32} ($N=32$, \texttt{nn\_dist\_cv = 0,24}, \texttt{spatial\_entropy = 0,97}) foi resolvida em $34{,}58\text{ s}$. A alta heterogeneidade de distâncias em \texttt{berlin52\_n20} gera grupos compactos separados por grandes lacunas, situação em que a MST subestima as múltiplas travessias necessárias para fechar um ciclo hamiltoniano.
 
 \begin{figure}[H]
     \centering
@@ -301,18 +301,20 @@ Como caso adversarial emblemático para a busca exata, destaca-se \texttt{berlin
 % 5. CONCLUSÕES
 % ==============================================================================
 \section{Conclusões}
-Este trabalho demonstrou, por meio de auditoria de código, \textit{profiling} granular e modelagem estatística sobre 15 instâncias \texttt{EUC\_2D}, como decisões de baixo nível e características topológicas governam o desempenho de algoritmos para o TSP:
+Este trabalho demonstrou, por meio de auditoria de código, \textit{profiling} e modelagem estatística sobre 15 instâncias \texttt{EUC\_2D}, como decisões de baixo nível e características topológicas governam o desempenho de algoritmos para o TSP:
 \begin{enumerate}
-    \item No Branch-and-Bound, a combinação de DFS com ordenação \textit{nearest-first}, \textit{bitmask}, quebra de simetria em $O(1)$ e limite inferior baseado em MST com buffers pré-alocados manteve o consumo de memória controlado e permitiu resolver $75\%$ das instâncias da ``Faixa Principal'' (até $N=32$), colapsando nas instâncias maiores ou altamente clusterizadas (\texttt{berlin52\_n20}).
-    \item Entre as cinco estratégias de \textit{warm-start}, \texttt{convex\_hull\_insertion} ofereceu o melhor custo-benefício (tempo de execução inferior a $0{,}1\text{ ms}$, \textit{gap} inicial médio de $2{,}57\%$ e redução média de $\approx 30\%$ nos nós expandidos), seguida por \texttt{christofides} ($9{,}46\%$ de \textit{gap} médio e razão $0{,}858\times$).
+    \item No Branch-and-Bound, a combinação de DFS com ordenação \textit{nearest-first}, \textit{bitmask}, quebra de simetria em $O(1)$ e limite inferior baseado em MST com buffers pré-alocados manteve o consumo de memória controlado e permitiu resolver $75\%$ das instâncias da ``Faixa Principal'' (até $N=32$), colapsando nas instâncias maiores ou altamente clusterizadas.
+    \item Entre as cinco estratégias de \textit{warm-start}, \texttt{convex\_hull\_insertion} ofereceu o melhor custo-benefício, com tempo de execução inferior a $0{,}1\text{ ms}$, \textit{gap} inicial médio de $2{,}57\%$ e redução média de $\approx 30\%$ nos nós expandidos, seguida por \texttt{christofides} ($9{,}46\%$ de \textit{gap} médio e razão $0{,}858\times$).
     \item O \textit{profiling} por sub-rotina confirmou que o emparelhamento perfeito de peso mínimo é o gargalo dominante do \textit{Christofides} ($>90\%$ do tempo e $348\text{ KB}$ de memória em $N=70$), enquanto a análise de sensibilidade evidenciou o papel de \texttt{convex\_hull\_ratio} e \texttt{spatial\_entropy} na degradação das soluções aproximadas.
 \end{enumerate}
+Além disso, esse trabalho aponta para o uso correto de grandes modelos de linguagem para a geração de código correto, que neste sentido fizeram um ótimo trabalho ao aumentar a eficiência de codificação, mas sem terceirizar a responsabilidade humana de auditoria das implementações. Não só isso, como também 
+a interpretação de resultados e orquestramento de testes teve movimento basilar coordenado pelos alunos autores. 
 
 % ==============================================================================
 % REFERÊNCIAS BIBLIOGRÁFICAS
 % ==============================================================================
 \begin{thebibliography}{9}
-% TODO: Popular com as referências bibliográficas utilizadas no artigo.
+\bibitem{ref1} Especificação do Trabalho Prático 2 - Análise Empírica e Otimização para o Caixeiro Viajante, DCC/ICEx/UFMG.
 \end{thebibliography}
 
 % ==============================================================================
