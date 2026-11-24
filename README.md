@@ -3,6 +3,12 @@
 Trabalho Prático 2 — DCC207 (Algoritmos 2, UFMG)  
 **Análise Empírica e Otimização para o Caixeiro Viajante (TSP Geométrico)**
 
+## Integrantes
+
+- **Cauã Neto Santos Pires** (`2024005335`)
+- **Rafael Junqueira Baracat** (`2024066024`)
+- **Renato Vilela de Melo** (`2024066016`)
+
 ## Estrutura do Repositório
 
 ```text
