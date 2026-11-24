@@ -165,8 +165,8 @@ Além do algoritmo exato, foram implementadas cinco estratégias geradoras de ci
     \item \textbf{\textit{Cold Start}:} constrói a rota trivial na ordem dos índices ($0 \to 1 \to \dots \to N-1 \to 0$) em tempo $O(N)$, servindo como linha de base.
     \item \textbf{\textit{Nearest Neighbor}:} inicia no vértice $0$ e seleciona iterativamente o vértice não visitado mais próximo em tempo $O(N^2)$ e espaço auxiliar $O(N)$.
     \item \textbf{\textit{Convex Hull Insertion}:} calcula inicialmente o fecho convexo via \textit{Andrew's Monotone Chain} em $O(N \log N)$, evitando falhas em pontos colineares, e insere os vértices internos por \textit{Cheapest Insertion}, minimizando $\Delta = d[u, k] + d[k, w] - d[u, w]$.
-    \item \textbf{\textit{Twice-around-the-tree} ($2$-aproximação):} constrói a MST via algoritmo de Prim adaptado para grafos densos~\cite{coutinho2026} (em $O(N^2)$ sobre vetores 1D) e realiza caminhamento em pré-ordem iterativo com pilha em $O(N)$, evitando risco de estouro de pilha recursiva.
-    \item \textbf{\textit{Christofides} ($1{,}5$-aproximação):} obtém a MST via Prim, identifica os vértices de grau ímpar, calcula o emparelhamento perfeito de peso mínimo (\textit{Blossom} via \texttt{nx.min\_weight\_matching}~\cite{networkx_docs}), extrai um circuito euleriano no multigrafo resultante e aplica atalhos (\textit{shortcutting}) em $O(N)$ para eliminar repetições.
+    \item \textbf{\textit{Twice-around-the-tree} ($2$-aproximação):} constrói a MST via algoritmo de Prim adaptado para grafos densos~\cite{coutinho2026, cormen2009} (em $O(N^2)$ sobre vetores 1D) e realiza caminhamento em pré-ordem iterativo com pilha em $O(N)$, evitando risco de estouro de pilha recursiva.
+    \item \textbf{\textit{Christofides} ($1{,}5$-aproximação)~\cite{christofides1976}:} obtém a MST via Prim, identifica os vértices de grau ímpar, calcula o emparelhamento perfeito de peso mínimo (\textit{Blossom} via \texttt{nx.min\_weight\_matching}~\cite{networkx_docs}), extrai um circuito euleriano no multigrafo resultante e aplica atalhos (\textit{shortcutting}) em $O(N)$ para eliminar repetições.
 \end{enumerate}
 
 \subsection{Auditoria de Código, Refatorações e Gargalos de Sub-rotina}
@@ -184,7 +184,7 @@ A auditoria empírica e estrutural identificou dois gargalos principais que moti
 \subsection{Ambiente Computacional e Conjunto de Teste (TSPLIB)}
 Os experimentos foram executados em ambiente Linux sobre processador Intel Core i5-12500H, com paralelismo moderado (\texttt{workers=4}) no \texttt{src/runner.py}. Para heurísticas e aproximações, adotou-se \textit{warm-up} seguido da mediana de $15$ repetições para estabilizar medições de menor ordem; para o Branch-and-Bound, aplicou-se \textit{timeout} de $1800\text{ s}$, registrando o tempo como \texttt{NA} quando excedido.
 
-Na inspeção do repositório oficial TSPLIB95, verificou-se que não há instâncias \texttt{EUC\_2D} nativas com $N \le 40$. Para cumprir a proporção exigida sem abandonar a métrica no 2D, selecionamos 15 instâncias: 3 completas na ``Faixa Limite'' e 12 subconjuntos determinísticos na ``Faixa Principal'' ($N \in [12, 40]$), extraídos com critérios geométricos distintos para garantir diversidade topológica. Os custos ótimos exatos das 12 subinstâncias foram determinados de forma independente via programação linear inteira com eliminação de subciclos (DFJ) em \texttt{scipy.optimize.milp}.
+Na inspeção do repositório oficial TSPLIB95~\cite{reinelt1991}, verificou-se que não há instâncias \texttt{EUC\_2D} nativas com $N \le 40$. Para cumprir a proporção exigida sem abandonar a métrica no 2D, selecionamos 15 instâncias: 3 completas na ``Faixa Limite'' e 12 subconjuntos determinísticos na ``Faixa Principal'' ($N \in [12, 40]$), extraídos com critérios geométricos distintos para garantir diversidade topológica. Os custos ótimos exatos das 12 subinstâncias foram determinados de forma independente via programação linear inteira com eliminação de subciclos (DFJ) em \texttt{scipy.optimize.milp}.
 
 \subsection{Extração de Features Geométricas e Topológicas}
 Para a análise de sensibilidade (\texttt{src/features.py}), extraíram-se sete atributos de cada instância:
@@ -390,6 +390,21 @@ NetworkX Developers (2026).
 The pandas development team (2026).
 \newblock \emph{pandas Documentation -- Python Data Analysis Library}.
 \newblock Disponível em: \url{https://pandas.pydata.org/docs/}. Acesso em: nov. 2026.
+
+\bibitem{christofides1976}
+Christofides, N. (1976).
+\newblock Worst-case analysis of a new heuristic for the travelling salesman problem.
+\newblock \emph{Report 388, Graduate School of Industrial Administration, CMU}.
+
+\bibitem{reinelt1991}
+Reinelt, G. (1991).
+\newblock TSPLIB -- A Traveling Salesman Problem Library.
+\newblock \emph{ORSA Journal on Computing}, 3(4):376--384.
+
+\bibitem{cormen2009}
+Cormen, T. H., Leiserson, C. E., Rivest, R. L., and Stein, C. (2009).
+\newblock \emph{Introduction to Algorithms}.
+\newblock MIT Press, 3rd edition.
 
 \end{thebibliography}
 
